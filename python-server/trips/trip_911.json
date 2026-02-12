@@ -1,0 +1,68 @@
+{
+  "origin": "Bhubaneswar",
+  "destination": "Puri",
+  "days": 3,
+  "people": 2,
+  "journeyDate": "2026-02-05",
+  "itinerary": [
+    {
+      "day": 1,
+      "activities": [
+        "Visit Puri Beach",
+        "Explore Puri Jagannath Temple"
+      ]
+    },
+    {
+      "day": 2,
+      "activities": [
+        "Beach Walk at Puri Beach",
+        "Visit Konark Sun Temple"
+      ]
+    },
+    {
+      "day": 3,
+      "activities": [
+        "Relax at Puri Beach",
+        "Shopping in Puri"
+      ]
+    }
+  ],
+  "food": [
+    {
+      "day": 1,
+      "breakfast": "Idli with Chutney",
+      "lunch": "Fish Fry with Rice",
+      "dinner": "Dosa with Sambar",
+      "estimated_cost": 800
+    },
+    {
+      "day": 2,
+      "breakfast": "Poha with Chutney",
+      "lunch": "Chicken Biryani",
+      "dinner": "Rice with Dalma",
+      "estimated_cost": 900
+    },
+    {
+      "day": 3,
+      "breakfast": "Paratha with Chutney",
+      "lunch": "Fish Fry with Rice",
+      "dinner": "Dosa with Sambar",
+      "estimated_cost": 800
+    }
+  ],
+  "accommodation": [
+    {
+      "name": "Hotel Puri Palace",
+      "location": "Puri Beach Road",
+      "rating": 4,
+      "estimated_cost_per_night": 1200
+    }
+  ],
+  "budget": {
+    "transportation": 800,
+    "food": 2400,
+    "accommodation": 3600,
+    "miscellaneous": 400,
+    "total": 5000
+  }
+}

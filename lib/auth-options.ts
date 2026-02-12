@@ -7,20 +7,18 @@ import { env } from "process";
 
 export const authOptions: NextAuthOptions = {
   callbacks: {
-    async session({ session, token }) {
-      session = {
-        ...session,
-        user: {
-          ...session.user,
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          //@ts-ignore
-          id: token?.sub,
-          passwordHash: token?.passwordHash,
-        },
-      };
-      return session;
-    },
+  async redirect({ baseUrl }) {
+    return `${baseUrl}/trip`;
   },
+  async session({ session, token }) {
+    session.user = {
+      ...session.user,
+      // @ts-ignore
+      id: token.sub,
+    };
+    return session;
+  },
+},
   session: {
     strategy: 'jwt',
   },
@@ -74,6 +72,6 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   pages: {
-    signIn: "/",  
+    signIn: "/signin",  
   },
 };

@@ -1,6 +1,7 @@
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
+
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -9,116 +10,116 @@ import os
 import random
 load_dotenv()
 
+from fastapi import HTTPException
+import json
+
+
+def safe_json_parse(text: str):
+    try:
+        return json.loads(text)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"LLM returned invalid JSON: {e}"
+        )
+
 
 ## Prompt Template
-prompt=ChatPromptTemplate.from_messages(
-    [
-       ("system", """You are a good trip planner specialized in Bangladeshi trips and provide accurate data. You will provide the response in JSON format. Example Response Structure:
-            'trip_name': 'Dhaka to Sajek 5 days trip with 2 people to enjoy the hill',
-            'origin': 'Dhaka',
-            'destination': 'Sajek',
-            'days': 5,
-            'max_budget': 5000,
-            'people': 2,
-            'preferences': 'hill',
-            'checkpoints': [ 
-                'origin': 
-                    'location': 'Dhaka',
-                    'latitude': 23.8103,
-                    'longitude': 90.4125
-                ,
-                'destination': 
-                    'location': 'Sylhet',
-                    'latitude': 24.8949,
-                    'longitude': 91.8687
-                ,
-                'logistics': 
-                    'departure_time': '06:00 AM',
-                    'arrival_time': '12:00 PM',
-                    'tips': 'Take an early morning bus from Dhaka to Sylhet to enjoy the scenic beauty along the way.'
-                
-                ,
-                
-                'origin': 
-                    'location': 'Sylhet',
-                    'latitude': 24.8949,
-                    'longitude': 91.8687
-                ,
-                'destination': 
-                    'location': 'Sajek',
-                    'latitude': 23.3814,
-                    'longitude': 92.2938
-                ,
-                'logistics': 
-                    'departure_time': '07:00 AM',
-                    'arrival_time': '03:00 PM',
-                    'tips': 'Hire a local jeep from Sylhet to Sajek for a thrilling ride through the hills.'
-                
-                
-            ],
-            'food': 
-                '1': 
-                'breakfast':
-                            'name': 'BFC',
-                            'type': 'Fast Food',
-                            'cost': 400
-                        ,
-                'launch':
-                            'name': 'Local Restaurants',
-                            'type': 'Bengali Cuisine',
-                            'cost': 250
-                        ,
-                'dinner':
-                        'name': 'Continental Hotel',
-                        'type': 'Chinese Dish',
-                        'cost': 550
-                        
-                ,
-            ,
-            'accommodation': 
-                '1': 
-                'location': 'Sylhet',
-                'type': 'Budget hotel',
-                'cost_per_night': 800
-                ,
-                '2': 
-                'location': 'Sajek',
-                'type': 'Cottage',
-                'cost_per_night': 1000
-                ,
-                '3': 
-                'location': 'Sajek',
-                'type': 'Cottage',
-                'cost_per_night': 1000
-                ,
-                '4': 
-                'location': 'Sylhet',
-                'type': 'Budget hotel',
-                'cost_per_night': 800
-                
-            ,
-            'budget': 
-                'total_budget': 5100,
-                'breakdown': 
-                'transportation': 1500,
-                'food': 1500,
-                'accommodation': 2000,
-                'miscellaneous': 100
-            """),
-       ("user","create a trip plan for {origin} to {destination} for {days} days with {people} people and max budget {max budget} taka. preferences are {preferences}")
-    ]
+trip_plan_prompt = ChatPromptTemplate.from_messages(
+[
+(
+"system",
+"""
+You are a STRICT Indian travel plan generator API.
+
+CRITICAL RULES:
+# - Output ONLY valid JSON
+- Return valid JSON.
+- Strings OR numbers allowed.
+- No markdown, no explanations
+- Do NOT omit any fields
+- All numeric values must be numbers
+- Budget.total MUST equal sum of breakdown
+- All places MUST be in Odisha, India (prefer Puri, Konark, Chilika, Koraput)
+
+OUTPUT SCHEMA (MUST MATCH EXACTLY):
+
+{
+#   "trip_name": string,
+  "origin": string,
+  "destination": string,
+  "days": number,
+  "people": number,
+  "journeyDate": string,
+
+  "itinerary": [
+    {
+      "day": number,
+      "activities": string[]
+    }
+  ],
+
+  "food": [
+    {
+      "day": number,
+      "breakfast": string,
+      "lunch": string,
+      "dinner": string,
+      "estimated_cost": number
+    }
+  ],
+
+  "accommodation": [
+    {
+      "name": string,
+      "location": string,
+      "rating": number,
+      "estimated_cost_per_night": number
+    }
+  ],
+
+  "budget": {
+    "transportation": number,
+    "food": number,
+    "accommodation": number,
+    "miscellaneous": number,
+    "total": number
+  }
+}
+"""
+),
+(
+"user",
+"""
+Create an Indian trip plan from {origin} to {destination}
+for {days} days with {people} people.
+
+Budget: {budget} INR
+Preferences: {preferences}
+Trip Type: {tripType}
+Journey Date: {journeyDate}
+Travel Class: {travelClass}
+
+Ensure:
+- Every day has breakfast, lunch, and dinner
+- Budget total must match sum of breakdown
+- Locations should be Odisha, India focused if applicable
+"""
 )
 
-# openAI LLm 
-llm_gpt = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0,
-    max_tokens=None,
-    timeout=None,
-    max_retries=2,
+]
 )
+
+
+# groq LLm 
+llm_gpt= ChatGroq(
+    model="llama-3.1-8b-instant",
+    temperature=0.7,
+    groq_api_key=os.getenv("GROQ_API_KEY")
+)
+
 output_parser=StrOutputParser()
-chain=prompt|llm_gpt|output_parser
+chain = trip_plan_prompt | llm_gpt | output_parser
 
 
 

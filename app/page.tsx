@@ -14,21 +14,23 @@ import moment from "moment";
 import axios from "axios";
 import TravelPlannerModal from "./TravelPlannerModal";
 import { useSession } from "next-auth/react";
+import type { Dayjs } from "dayjs";
 
 const BookingCard = () => {
   // Dummy data for initial form state
   const places = [
-    { location: "Dhaka", latitude: 23.8103, longitude: 90.4125 },
-    { location: "Teknaf", latitude: 20.8637, longitude: 92.3018 },
-    { location: "Tetulia", latitude: 26.3086, longitude: 88.9353 },
-    { location: "Saint Martin", latitude: 20.6273, longitude: 92.3226 },
-    { location: "Sylhet", latitude: 24.8949, longitude: 91.8687 },
-    { location: "Bandarban", latitude: 22.1953, longitude: 92.218 },
-    { location: "Cox's Bazar", latitude: 21.4272, longitude: 92.0058 },
-    { location: "Rangamati", latitude: 22.7324, longitude: 92.2988 },
-    { location: "Khagrachari", latitude: 23.1193, longitude: 91.9847 },
-    { location: "Sajek", latitude: 23.3817, longitude: 92.2931 },
-    { location: "Kuakata", latitude: 21.8167, longitude: 90.1167 },
+    { location: "Bhubaneswar", latitude: 20.2961, longitude: 85.8245 },
+    { location: "Puri", latitude: 19.8135, longitude: 85.8312 },
+    { location: "Konark", latitude: 19.8876, longitude: 86.0945 },
+    { location: "Cuttack", latitude: 20.4625, longitude: 85.883 },
+    { location: "Chilika", latitude: 19.673, longitude: 85.388 },
+    { location: "Gopalpur", latitude: 19.2561, longitude: 84.9041 },
+    { location: "Koraput", latitude: 18.811, longitude: 82.7105 },
+    { location: "Rayagada", latitude: 19.1717, longitude: 83.4163 },
+    { location: "Rourkela", latitude: 22.2604, longitude: 84.8536 },
+    { location: "Sambalpur", latitude: 21.4669, longitude: 83.9812 },
+    { location: "Balasore", latitude: 21.4942, longitude: 86.9336 },
+    { location: "Baripada", latitude: 21.931, longitude: 86.751 },
   ];
 
   // todays date
@@ -36,15 +38,15 @@ const BookingCard = () => {
 
   // Form state variables
   const [tripType, setTripType] = useState("oneWay");
-  const [origin, setOrigin] = useState("Dhaka");
-  const [destination, setDestination] = useState("Cox's Bazar");
+  const [origin, setOrigin] = useState("Bhubaneswar");
+  const [destination, setDestination] = useState("Puri");
   const [journeyDate, setJourneyDate] = useState(today.toISOString());
   const [days, setDays] = useState("3");
   const [people, setPeople] = useState("5");
   const [travelClass, setTravelClass] = useState("economy");
-  const [selectedDate, setSelectedDate] = useState();
+  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [budget, setBudget] = useState("5000");
-  const [preferences, setPreferences] = useState("want to see river view");
+  const [preferences, setPreferences] = useState("want to see beach");
 
   const router = useRouter();
 
@@ -71,17 +73,27 @@ const BookingCard = () => {
       console.log("API Response:", data);
 
       // Store response data in local storage
-      localStorage.setItem("tripData", JSON.stringify(data.output));
+      localStorage.removeItem("tripPlan");
+      localStorage.setItem("tripPlan", JSON.stringify(data));
+
+      console.log("Stored tripPlan:", localStorage.getItem("tripPlan"));
+
+      router.push("/trip/preview");
+
+      console.log("Stored tripPlan:", localStorage.getItem("tripPlan"));
 
       // Navigate to preview page if successful
-      //   router.push("/trip/preview");
+      router.push("/trip/preview");
     } catch (error) {
       console.error("Error during API call:", error);
     }
   };
 
-  const handleDateChange = (date) => {
+  const handleDateChange = (date: Dayjs | null) => {
     setSelectedDate(date);
+    if (date) {
+      setJourneyDate(date.toISOString());
+    }
   };
 
   return (
@@ -277,11 +289,11 @@ const Header = () => {
     <div className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50">
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-12">
-          <div className="text-2xl font-bold text-purple-800">EasyTrip</div>
+          <div className="text-2xl font-bold text-purple-800">SmartTrip</div>
         </div>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-md cursor-pointer hover:bg-gray-200 transition-all">
-            <span className="text-sm font-medium text-gray-800">BDT</span>
+            <span className="text-sm font-medium text-gray-800">INR</span>
             <ChevronDown className="w-4 h-4 text-gray-400" />
           </div>
           {session?.user ? (
@@ -309,22 +321,22 @@ const Header = () => {
 };
 
 export default function Homepage() {
-  const [selectedTab, setSelectedTab] = useState("flight");
+  const [selectedTab, setSelectedTab] = useState("train");
   const [tripType, setTripType] = useState("oneWay");
   const [showForm, setShowForm] = useState(false);
   const [showInputField, setShowInputField] = useState(true);
   const router = useRouter();
   // Array of suggestions
   const suggestions = [
-    "Journey from dhaka to sylhet with 3 friends 4 days budget 5k",
-    "Sylhet to Cox's Bazar tour with budget 5k",
-    "Chittagong to Saint Martin trip for 3 days",
-    "Weekend getaway from Khulna to Bandarban",
-    "Family trip from Rajshahi to Kuakata",
-    "Budget trip from Barisal to Sajek",
-    "Luxury tour from Sylhet to Rangamati",
-    "Road trip from Chittagong to Teknaf",
-    "Adventure trip from Khulna to Saint Martin",
+    "Bhubaneswar to Puri trip for 3 days budget 8000",
+    "Temple tour Bhubaneswar Puri Konark",
+    "Weekend beach trip to Gopalpur from Bhubaneswar",
+    "Chilika lake tour with family",
+    "Odisha heritage tour for 5 days",
+    "Budget trip to Koraput hills",
+    "Konark Sun Temple one day trip",
+    "Road trip Bhubaneswar to Sambalpur",
+    "Nature trip to Rayagada Odisha",
   ];
 
   const [inputText, setInputText] = useState(""); // Holds the user input or auto-typed text
@@ -359,9 +371,9 @@ export default function Homepage() {
     }
   }, [typingIndex, currentSuggestionIndex, suggestions, isUserTyping]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
-    setIsUserTyping(true); // Stop the auto-typing when the user types
+    setIsUserTyping(true);
   };
 
   const handleClearInput = () => {
@@ -394,7 +406,7 @@ export default function Homepage() {
           {/* EasyTrip Intro */}
           <div className="text-center mb-12 space-y-6">
             <div className="text-4xl md:text-5xl font-extrabold text-gray-800 leading-normal">
-              <span className="font-bold">EasyTrip AI</span> <br />
+              <span className="font-bold">SmartTrip</span> <br />
               <div className="text-xl md:text-2xl font-bold text-gray-700">
                 Your Personal Travel Agent
               </div>

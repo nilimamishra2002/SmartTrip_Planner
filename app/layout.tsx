@@ -10,8 +10,8 @@ import { getServerSession } from "next-auth";
 const inter = Inter({ subsets: ["latin"] });
  
 export const metadata: Metadata = {
-  title: "Easy Trip",
-  description: "Easy Trip",
+  title: "SmartTrip",
+  description: "Smart Trip Planner",
 };
 
 export default async function RootLayout({

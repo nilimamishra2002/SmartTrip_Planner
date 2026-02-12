@@ -83,31 +83,57 @@ const TravelPlannerModal = ({
     }
   }, [inputText]);
 
-  const generateTripPlan = async () => {
-    setLoading(true);
-    try {
-      const queryParams = new URLSearchParams({
-        origin: formData?.origin,
-        destination: formData?.destination,
-        days: formData?.days,
-        budget: formData?.budget,
-        people: formData?.people,
-        preferences: formData?.preferences,
-        tripType: formData?.tripType,
-        journeyDate: formData?.journeyDate,
-        travelClass: formData?.travelClass,
-      });
 
-      const response = await fetch(`/api/tripPlan?${queryParams}`);
-      const data = await response.json();
-      localStorage.setItem("tripPlan", JSON.stringify(data.output));
-      onClose();
-      router.push("/trip/preview");
-    } catch (error) {
-      console.error("Error generating trip plan:", error);
+  const normalizeCity = (city?: string) => {
+  if (!city) return "";
+  const cleaned = city.trim().toLowerCase();
+
+  if (cleaned === "bhubaneswar") return "Bhubaneswar";
+  if (cleaned === "puri city") return "Puri";
+
+  return city.trim();
+};
+
+
+  const generateTripPlan = async () => {
+  setLoading(true);
+
+  try {
+    const queryParams = new URLSearchParams({
+  origin: normalizeCity(formData?.origin),
+  destination: normalizeCity(formData?.destination),
+  days: formData?.days ?? "3",
+  budget: formData?.budget ?? "5000",
+  people: formData?.people ?? "1",
+  preferences: formData?.preferences ?? "",
+  tripType: formData?.tripType ?? "oneWay",
+  journeyDate: formData?.journeyDate ?? new Date().toISOString(),
+  travelClass: formData?.travelClass ?? "economy",
+});
+
+
+    const response = await fetch(`/api/tripPlan?${queryParams}`);
+
+    
+
+    const data = await response.json();
+    if (!data) {
+      throw new Error("Trip plan API failed");
     }
+
+    // ✅ STORE ACTUAL DATA
+    localStorage.setItem("tripPlan", JSON.stringify(data));
+    router.push("/trip/preview");
+
+    onClose();
+    router.push("/trip/preview");
+  } catch (error) {
+    console.error("Error generating trip plan:", error);
+  } finally {
     setLoading(false);
-  };
+  }
+};
+
 
   const getTodayDateString = () => {
     const today = new Date();

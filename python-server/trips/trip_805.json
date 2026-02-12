@@ -1,0 +1,68 @@
+{
+  "origin": "Bhubaneswar",
+  "destination": "Puri",
+  "days": 3,
+  "people": 2,
+  "journeyDate": "2026-02-05",
+  "itinerary": [
+    {
+      "day": 1,
+      "activities": [
+        "Visit Puri Beach",
+        "Explore Puri Jagannath Temple"
+      ]
+    },
+    {
+      "day": 2,
+      "activities": [
+        "Visit Konark Sun Temple",
+        "Relax on Puri Beach"
+      ]
+    },
+    {
+      "day": 3,
+      "activities": [
+        "Visit Chilika Lake",
+        "Return to Bhubaneswar"
+      ]
+    }
+  ],
+  "food": [
+    {
+      "day": 1,
+      "breakfast": "Idli with Sambar",
+      "lunch": "Fish Fry with Rice",
+      "dinner": "Dosa with Chutney",
+      "estimated_cost": 800
+    },
+    {
+      "day": 2,
+      "breakfast": "Puri with Chana Masala",
+      "lunch": "Fish Fry with Rice",
+      "dinner": "Biryani with Raita",
+      "estimated_cost": 900
+    },
+    {
+      "day": 3,
+      "breakfast": "Paratha with Scrambled Eggs",
+      "lunch": "Lunch at a local restaurant",
+      "dinner": "Dinner at a local restaurant",
+      "estimated_cost": 700
+    }
+  ],
+  "accommodation": [
+    {
+      "name": "Hotel Sea View",
+      "location": "Puri Beach",
+      "rating": 4,
+      "estimated_cost_per_night": 1500
+    }
+  ],
+  "budget": {
+    "transportation": 1000,
+    "food": 2200,
+    "accommodation": 4500,
+    "miscellaneous": 500,
+    "total": 5000
+  }
+}

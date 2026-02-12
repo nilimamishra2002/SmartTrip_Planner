@@ -34,7 +34,7 @@ export default function AuthenticationPage() {
           >
             <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
           </svg>
-          Easy Trip
+          SmartTrip
         </div>
         <div className="absolute inset-0 z-0">
         <DotLottieReact src="land2.json" loop autoplay className="w-full h-full object-cover" />
@@ -44,7 +44,7 @@ export default function AuthenticationPage() {
             <p className="text-lg">
               Enjoy the journey, love the destination.
             </p>
-            <footer className="text-sm">Quantum Guys</footer>
+            <footer className="text-sm">Code Crusaders</footer>
           </blockquote>
         </div>
       </div>
@@ -64,7 +64,7 @@ export default function AuthenticationPage() {
 
           <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link href="/examples/authentication/signup" className="text-accent">
+            <Link href="/signin" className="text-accent">
               Sign up
             </Link>
           </p>

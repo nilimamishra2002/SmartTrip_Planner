@@ -1,105 +1,85 @@
-import { NextResponse } from 'next/server'
-const axios = require('axios');
+import { NextResponse } from "next/server";
+import axios from "axios";
 
- 
 const pythonServer = process.env.PYTHON_SERVER_URL;
 
- 
+const clean = (v: string | null, fallback = "") =>
+  v && v !== "undefined" && v !== "null" ? v : fallback;
+
+const normalizeCity = (city: string) => {
+  const c = city.trim().toLowerCase();
+  if (c === "bhubanewsar" || c === "bhubaneswar city") return "Bhubaneswar";
+  if (c === "puri city") return "Puri";
+  return city.trim();
+};
+
 export async function GET(request: Request) {
-    const { searchParams } = new URL(request.url);
-    const origin = searchParams.get('origin') || 'Dhaka';
-    const destination = searchParams.get('destination') || 'Sylhet';
-    const days = searchParams.get('days') || '3';
-    const budget = searchParams.get('budget') || '5000';
-    const people = searchParams.get('people') || '5';
-    const preferences = searchParams.get('preferences') || '';
-    const tripType = searchParams.get('tripType') || 'oneWay';
-    const journeyDate = searchParams.get('journeyDate') || 'today';
-    const travelClass = searchParams.get('travelClass') || 'economy';
+  if (!pythonServer) {
+    console.error("PYTHON_SERVER_URL not defined");
+    return NextResponse.json(
+      { error: "Server misconfiguration" },
+      { status: 500 }
+    );
+  }
 
-    console.log(origin, destination, days, budget, people, preferences, tripType, journeyDate, travelClass);
+  const { searchParams } = new URL(request.url);
 
-    try {
-        const hotels = await getHotels(destination);
-        const hotelsString = JSON.stringify(hotels);
-        console.log(hotelsString);
+  const origin = normalizeCity(
+    clean(searchParams.get("origin"), "Bhubaneswar")
+  );
+  const destination = normalizeCity(
+    clean(searchParams.get("destination"), "Puri")
+  );
 
-        const restaurants = await getRestaurants(destination);
-        const restaurantsString = JSON.stringify(restaurants);
-        console.log(restaurantsString);
+  const days = Number(clean(searchParams.get("days"), "3"));
+  const budget = Number(clean(searchParams.get("budget"), "5000"));
+  const people = Number(clean(searchParams.get("people"), "1"));
+  const preferences = clean(searchParams.get("preferences"), "beach");
+  const tripType = clean(searchParams.get("tripType"), "oneWay");
+  const journeyDate = clean(
+    searchParams.get("journeyDate"),
+    new Date().toISOString()
+  );
+  const travelClass = clean(searchParams.get("travelClass"), "economy");
 
-        const response = await axios.post(`${pythonServer}/trip_plan/invoke`, {
+  console.log(
+    "Trip Plan Query:",
+    origin,
+    destination,
+    days,
+    budget,
+    people,
+    preferences
+  );
+
+  try {
+    const response = await axios.post(
+      `${pythonServer}/trip_plan/invoke`,
+      {
         input: {
-            origin,
-            destination,
-            days,
-            budget,
-            people,
-            preferences,
-            tripType,
-            journeyDate,
-            travelClass,
-            hotels: hotelsString,
-            restaurants: restaurantsString
-            }
-        });
-
-        return NextResponse.json(response.data);
-    } catch (error) {
-        console.log(error);
-        return NextResponse.json({ error: 'Failed to fetch trip plan' }, { status: 500 });
-    }
-}
-
-async function getHotels(place:string) {
-
-    let data = JSON.stringify({
-        "q": `residential hotel list near ${place},bangladesh`,
-        "gl": "bd"
-    });
-
-    let config = {
-        method: 'post',
-        url: 'https://google.serper.dev/places',
-        headers: { 
-            'X-API-KEY':process.env.GOOGLE_SEARCH_API_KEY, 
-            'Content-Type': 'application/json'
+          origin,
+          destination,
+          days,
+          people,
+          budget,
+          preferences,
+          tripType,
+          journeyDate,
+          travelClass,
         },
-        data: data
-    };
+      },
+      { timeout: 30_000 }
+    );
 
-    try {
-        const response: { data: any } = await axios(config);
-        return response.data;
-    } catch (error: any) {
-        return { error: error.message };
-    }
-    
-}
-
-
-async function getRestaurants(place:string) {
-
-    let data = JSON.stringify({
-        "q": `restaurants list near ${place},bangladesh`,
-        "gl": "bd"
-    });
-
-    let config = {
-        method: 'post',
-        url: 'https://google.serper.dev/places',
-        headers: { 
-            'X-API-KEY': process.env.GOOGLE_SEARCH_API_KEY,
-            'Content-Type': 'application/json'
-        },
-        data: data
-    };
-
-    try {
-        const response: { data: any } = await axios(config);
-        return response.data;
-    } catch (error: any) {
-        return { error: error.message };
-    }
-    
+    return NextResponse.json(response.data);
+  } catch (error: any) {
+    console.error(
+      "Trip plan API failed:",
+      error?.response?.data || error.message
+    );
+    return NextResponse.json(
+      { error: "Failed to fetch trip plan" },
+      { status: 500 }
+    );
+  }
 }

@@ -172,7 +172,7 @@ export async function PUT(request: Request) {
                 email : email
               }
             },
-            tripData: {}, // Initialize with empty data if needed
+            data: {}, // Initialize with empty data if needed
           },
         });
         return NextResponse.json({

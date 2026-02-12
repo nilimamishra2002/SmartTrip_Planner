@@ -1,0 +1,68 @@
+{
+  "origin": "Bhubaneswar",
+  "destination": "Puri",
+  "days": 3,
+  "people": 2,
+  "journeyDate": "2026-02-05",
+  "itinerary": [
+    {
+      "day": 1,
+      "activities": [
+        "Visit Puri Beach",
+        "Explore Puri Jagannath Temple"
+      ]
+    },
+    {
+      "day": 2,
+      "activities": [
+        "Visit Konark Sun Temple",
+        "Relax on Puri Beach"
+      ]
+    },
+    {
+      "day": 3,
+      "activities": [
+        "Visit Chilika Lake",
+        "Shop at Puri Market"
+      ]
+    }
+  ],
+  "food": [
+    {
+      "day": 1,
+      "breakfast": "Idli with Sambar and Chutney",
+      "lunch": "Fish Fry with Rice and Dalma",
+      "dinner": "Rasagola with Dahi and Papad",
+      "estimated_cost": 1200
+    },
+    {
+      "day": 2,
+      "breakfast": "Puri with Masala Dosa and Chutney",
+      "lunch": "Crab Curry with Rice and Vegetable Biryani",
+      "dinner": "Jhula Momo with Chutney and Raita",
+      "estimated_cost": 1300
+    },
+    {
+      "day": 3,
+      "breakfast": "Bhindi with Paratha and Chutney",
+      "lunch": "Chicken Tikka with Rice and Vegetable Biryani",
+      "dinner": "Gajar Ka Halwa with Dahi and Papad",
+      "estimated_cost": 1400
+    }
+  ],
+  "accommodation": [
+    {
+      "name": "Hotel Puri Sands",
+      "location": "Puri Beach Road",
+      "rating": 4,
+      "estimated_cost_per_night": 1500
+    }
+  ],
+  "budget": {
+    "transportation": 800,
+    "food": 4000,
+    "accommodation": 4500,
+    "miscellaneous": 1000,
+    "total": 5000
+  }
+}
