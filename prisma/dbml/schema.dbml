@@ -45,7 +45,7 @@ Table User {
   photos PhotoData [not null]
   sessions Session [not null]
   tripPlans TripPlan [not null]
-  volgs Vlog [not null]
+  vlogs Vlog [not null]
   membersOfTrip TripPlan [not null]
 }
 
@@ -91,6 +91,7 @@ Table Vlog {
   id String [pk]
   title String [not null]
   content String [not null]
+  thumbnail String [not null, default: '']
   authorId String [not null]
   status STAUS [not null, default: 'PRIVATE']
   tripPlanId String [not null]
@@ -103,6 +104,7 @@ Table Vlog {
 Table PhotoData {
   id String [pk]
   url String [not null]
+  name String [not null]
   tripPlanId String [not null]
   authorId String [not null]
   caption String

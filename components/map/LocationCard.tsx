@@ -1,40 +1,62 @@
-import React from 'react';
-import { MapContainer, TileLayer, Polygon } from 'react-leaflet';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+"use client";
 
-const LocationCard = ({ location }) => {
-  const { name, latitude, longitude, geojson } = location;
-  const center = [latitude, longitude];
-  const polygonPositions = geojson.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import L from "leaflet";
 
-  return (
-    <Card className="mb-4">
-      <CardHeader>{name || "Unnamed Location"}</CardHeader>
-      <CardContent>
-        <MapContainer 
-          center={center} 
-          zoom={13} 
-          style={{ height: '200px', width: '100%' }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          <Polygon positions={polygonPositions} />
-        </MapContainer>
-      </CardContent>
-    </Card>
-  );
+type Props = {
+  origin: {
+    latitude: number;
+    longitude: number;
+    location: string;
+  };
+  destination: {
+    latitude: number;
+    longitude: number;
+    location: string;
+  };
 };
 
-const LocationCards = ({ locations }) => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {locations?.map((location) => (
-        <LocationCard key={location.id} location={location} />
-      ))}
-    </div>
-  );
-};
+// Fix marker icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+});
 
-export default LocationCards;
+export default function LocationCard({ origin, destination }: Props) {
+  const originPos: [number, number] = [origin.latitude, origin.longitude];
+  const destPos: [number, number] = [
+    destination.latitude,
+    destination.longitude,
+  ];
+
+  return (
+    <MapContainer
+      center={originPos}
+      zoom={6}
+      className="w-full h-full"
+    >
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      {/* Origin Marker */}
+      <Marker position={originPos}>
+        <Popup>Start: {origin.location}</Popup>
+      </Marker>
+
+      {/* Destination Marker */}
+      <Marker position={destPos}>
+        <Popup>Destination: {destination.location}</Popup>
+      </Marker>
+
+      {/* Route Line */}
+      <Polyline positions={[originPos, destPos]} color="blue" />
+    </MapContainer>
+  );
+}

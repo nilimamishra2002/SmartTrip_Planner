@@ -12,7 +12,7 @@ COPY ./ .
 RUN npm install --force
 
 # Install Prisma CLI
-RUN npm install prisma@latest --force
+RUN npx prisma generate
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -25,3 +25,5 @@ EXPOSE 3000
 
 # Define the command to run the app
 CMD ["npm", "start"]
+
+RUN npm prune --production

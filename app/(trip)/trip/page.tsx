@@ -71,90 +71,87 @@ export default function Page() {
 
   /* ================= FETCH TRIPS ================= */
 
-  const fetchTripPlans = async (email: string) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/trip?email=${email}`);
-      const data = await response.json();
+const fetchTripPlans = async () => {
+  setLoading(true);
+  try {
+    const response = await fetch("/api/trip");
+    const result = await response.json();
+    const data: Trip[] = result.trips ?? [];
 
-      if (data.tripPlans?.length) {
-        setTripPlans(data.tripPlans);
+    if (data.length > 0) {
+      setTripPlans(data);
 
-        const urlTripPlanId = searchParams.get("tripPlanId");
-        if (urlTripPlanId) {
-          const found = data.tripPlans.find(
-            (plan: Trip) => plan.id === urlTripPlanId
-          );
-          if (found) {
-            setSelectedTripPlan(found);
-            setTripPlanId(found.id);
-          }
-        } else {
-          setSelectedTripPlan(data.tripPlans[0]);
-          setTripPlanId(data.tripPlans[0].id);
-        }
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch trip plans.",
-      });
-    } finally {
-      setLoading(false);
+      const storedId = localStorage.getItem("selectedTripId");
+
+      const selected =
+        data.find((plan) => plan.id === storedId) || data[0];
+
+      setSelectedTripPlan(selected);
+      setTripPlanId(selected.id);
+
+      localStorage.removeItem("selectedTripId");
     }
-  };
+  } catch {
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Failed to fetch trip plans.",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   /* ================= SAVE TRIP ================= */
 
-  const saveTripPlan = async () => {
-    const tripPlanData = localStorage.getItem("tripPlan");
-    if (!tripPlanData || !session?.user?.email || savingInProgress) return;
+  // const saveTripPlan = async () => {
+  //   const tripPlanData = localStorage.getItem("tripPlan");
+  //   if (!tripPlanData || !session?.user?.email || savingInProgress) return;
 
-    try {
-      setSavingInProgress(true);
-      setLoading(true);
+  //   try {
+  //     setSavingInProgress(true);
+  //     setLoading(true);
 
-      const tripPlanObj: TripPlanData = JSON.parse(tripPlanData);
+  //     const tripPlanObj: TripPlanData = JSON.parse(tripPlanData);
 
-      const response = await fetch("/api/trip", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: session.user.email,
-          tripPlan: tripPlanData,
-        }),
-      });
+  //     const response = await fetch("/api/trip", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         email: session.user.email,
+  //         tripPlan: tripPlanData,
+  //       }),
+  //     });
 
-      const data = await response.json();
+  //     const data = await response.json();
 
-      if (data.tripPlan) {
-        setTripPlans((prev) => [...prev, data.tripPlan]);
-        setSelectedTripPlan(data.tripPlan);
-        setTripPlanId(data.tripPlan.id);
+  //     if (data.tripPlan) {
+  //       setTripPlans((prev) => [...prev, data.tripPlan]);
+  //       setSelectedTripPlan(data.tripPlan);
+  //       setTripPlanId(data.tripPlan.id);
 
-        localStorage.removeItem("tripPlan");
-        localStorage.setItem(
-          "tripPlanPreview",
-          JSON.stringify(data.tripPlan.data)
-        );
+  //       localStorage.removeItem("tripPlan");
+  //       localStorage.setItem(
+  //         "tripPlanPreview",
+  //         JSON.stringify(data.tripPlan.data)
+  //       );
 
-        toast({
-          title: "Trip Saved",
-          description: `Your trip "${tripPlanObj.trip_name}" was saved.`,
-        });
-      }
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save trip plan.",
-      });
-    } finally {
-      setLoading(false);
-      setSavingInProgress(true);
-    }
-  };
+  //       toast({
+  //         title: "Trip Saved",
+  //         description: `Your trip "${tripPlanObj.trip_name}" was saved.`,
+  //       });
+  //     }
+  //   } catch {
+  //     toast({
+  //       variant: "destructive",
+  //       title: "Error",
+  //       description: "Failed to save trip plan.",
+  //     });
+  //   } finally {
+  //     setLoading(false);
+  //     setSavingInProgress(true);
+  //   }
+  // };
 
   /* ================= HANDLERS ================= */
 
@@ -170,17 +167,23 @@ export default function Page() {
 
   /* ================= EFFECTS ================= */
 
-  useEffect(() => {
-    if (session?.user?.email) {
-      fetchTripPlans(session.user.email);
-    }
-  }, [session?.user?.email]);
+  // useEffect(() => {
+  //   if (session?.user?.email) {
+  //     fetchTripPlans(session.user.email);
+  //   }
+  // }, [session?.user?.email]);
+
+  // useEffect(() => {
+  //   if (session?.user?.email && !savingInProgress) {
+  //     saveTripPlan();
+  //   }
+  // }, [session?.user?.email, savingInProgress]);
 
   useEffect(() => {
-    if (session?.user?.email && !savingInProgress) {
-      saveTripPlan();
-    }
-  }, [session?.user?.email, savingInProgress]);
+  if (session?.user?.email) {
+    fetchTripPlans();
+  }
+}, [session?.user?.email]);
 
   useEffect(() => {
     updateURL();

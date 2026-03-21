@@ -46,7 +46,7 @@ export default function Header() {
             </svg>
             
           </Link>
-         <b> Easy Trip </b>
+         <b> SmartTrip </b>
         </div>
         {/* <div className={cn("block lg:!hidden")}>
           <MobileSidebar />

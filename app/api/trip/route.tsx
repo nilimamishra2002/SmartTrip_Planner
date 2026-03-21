@@ -1,191 +1,231 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/prisma/prisma-client";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 
-export async function GET(request: NextRequest) {
-  const searchParams = new URL(request.url).searchParams;
-  const email = searchParams.get("email");
+/* ================= GET USER TRIPS ================= */
 
-  const tripPlans = await prisma.tripPlan.findMany({
+export async function GET() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const email = session.user.email;
+
+  const trips = await prisma.tripPlan.findMany({
     where: {
       author: {
-        email: email as string,
+        email,
       },
     },
     include: {
       members: {
         select: {
+          id: true,
           email: true,
           name: true,
           image: true,
         },
-      }
+      },
+      photos: {
+        orderBy: { createdAt: "desc" },
+      },
+      blogs: {
+        orderBy: { createdAt: "desc" },
+      },
+      vlogs: {
+        orderBy: { createdAt: "desc" },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   });
 
-  return NextResponse.json(
-    {
-      message: "Trip plan updated/Fetched",
-      tripPlans: tripPlans,
-    },
-    { status: 200 },
-  );
+  return NextResponse.json({ trips });
 }
+
+/* ================= CREATE TRIP ================= */
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const { email, tripPlan } = body;
+  const session = await getServerSession(authOptions);
 
- 
-  if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (tripPlan && !tripPlan.id) {
-    // If email is not null and tripPlan is not null:
-    // Insert the tripPlan to the database with email and return the tripPlanId
-    try {
-      const newTripPlan = await prisma.tripPlan.create({
-        data: {
-          author: {
-            connect: {
-              email: email,
-            },
-          },
-          members: {
-            connect: {
-              email: email,
-            },
-          },
-          data: JSON.parse(tripPlan),
-        },
-      });
-      return NextResponse.json(
-        {
-          message: "Trip plan updated/Fetched",
-          tripPlan: newTripPlan,
-        },
-        { status: 200 },
-      ); 
-    } catch (error) {
-      console.error("Error saving trip plan:", error);
-      return NextResponse.json(
-        { error: "Error saving trip plan" },
-        { status: 500 },
-      );
-    } 
-}
-
-}
-
-export async function PUT(request: Request) {
+  const email = session.user.email;
   const body = await request.json();
-  const { email, tripPlan, tripPlanId } = body;
 
-  if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
-  }
-
-
-  // if user is not in the user table, add the user with passwordHash as password andd admin as role
-  const user = await prisma.user.findUnique({
-    where: {
-      email: email,
-    },
-  });
-
-  if (!user) {
-    await prisma.user.create({
-      data: {
-        email: email,
-        name : email.split("@")[0],
-        passwordHash: "password",
+  try {
+    // ✅ Ensure user exists
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        name: email.split("@")[0],
       },
     });
-  }
- 
-  if (tripPlan) {
-    // If email is not null and tripPlan is not null:
-    // Insert the tripPlan to the database with email and return the tripPlanId
-    try {
-      const newTripPlan = await prisma.tripPlan.update({
-        where: {
-          id: tripPlanId,
+
+    const newTrip = await prisma.tripPlan.create({
+      data: {
+        authorId: user.id,
+        members: {
+          connect: { id: user.id },
         },
+        data: body.data,
+      },
+      include: {
+        members: true,
+      },
+    });
+
+    return NextResponse.json(newTrip, { status: 201 });
+  } catch (error) {
+    console.error("Create trip error:", error);
+    return NextResponse.json(
+      { error: "Failed to create trip" },
+      { status: 500 }
+    );
+  }
+}
+
+/* ================= UPDATE TRIP ================= */
+
+export async function PUT(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { tripPlanId, data } = body;
+
+  if (!tripPlanId) {
+    return NextResponse.json(
+      { error: "Trip ID required" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const updatedTrip = await prisma.tripPlan.update({
+      where: { id: tripPlanId },
+      data: {
+        data,
+      },
+    });
+
+    return NextResponse.json(updatedTrip);
+  } catch (error) {
+    console.error("Update error:", error);
+    return NextResponse.json(
+      { error: "Failed to update trip" },
+      { status: 500 }
+    );
+  }
+}
+
+/* ================= ADD MEMBER ================= */
+
+export async function PATCH(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { tripPlanId, email } = body;
+
+  if (!tripPlanId || !email) {
+    return NextResponse.json(
+      { error: "tripPlanId and email required" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    // ✅ Ensure user exists
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        name: email.split("@")[0],
+      },
+    });
+
+    const updatedTrip = await prisma.tripPlan.update({
+      where: { id: tripPlanId },
+      data: {
+        members: {
+          connect: { id: user.id },
+        },
+      },
+      include: {
+        members: true,
+      },
+    });
+
+    return NextResponse.json(updatedTrip);
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { error: "Failed to add member" },
+      { status: 500 }
+    );
+  }
+}
+
+/* ================= REMOVE MEMBER AND TRIP ================= */
+
+export async function DELETE(request: Request) {
+  try {
+    const body = await request.json();
+
+    const { tripPlanId, memberId } = body;
+
+    // 🧠 CASE 1: REMOVE MEMBER
+    if (tripPlanId && memberId) {
+      const updatedTrip = await prisma.tripPlan.update({
+        where: { id: tripPlanId },
         data: {
           members: {
-            connect: {
-              email: email,
-            },
+            disconnect: { id: memberId },
           },
-          data: tripPlan,
+        },
+        include: {
+          members: true,
         },
       });
 
-
-      // Add Notification for the trip plan
-      await prisma.notification.create({
-        data: {
-          content: `New member ${user?.name} added to trip plan`,
-          tripPlan: {
-            connect: {
-              id: newTripPlan.id,
-            },
-          },
-        },
-      });
-
-
-      return NextResponse.json({
-        message: "Trip plan Updated",
-        tripPlanId: newTripPlan.id,
-      });
-    } catch (error) {
-      console.error("Error saving trip plan:", error);
-      return NextResponse.json(
-        { error: "Error saving trip plan" },
-        { status: 500 },
-      );
+      return NextResponse.json(updatedTrip);
     }
-  } else {
-    // If email is not null and tripPlan is null:
-    // Return the tripPlanId from the database with email
-    try {
-      const existingTripPlan = await prisma.tripPlan.findFirst({
-        where: {
-          author: {
-            email: email,
-          },
-        },
+
+    // 🧠 CASE 2: DELETE FULL TRIP
+    if (tripPlanId && !memberId) {
+      await prisma.tripPlan.delete({
+        where: { id: tripPlanId },
       });
 
-      if (existingTripPlan) {
-        return NextResponse.json({
-          message: "Trip plan found",
-          tripPlanId: existingTripPlan.id,
-        });
-      } else {
-        // Create a new trip plan if none exists
-        const newTripPlan = await prisma.tripPlan.create({
-          data: {
-            author:{
-              connect : {
-                email : email
-              }
-            },
-            data: {}, // Initialize with empty data if needed
-          },
-        });
-        return NextResponse.json({
-          message: "New trip plan created",
-          tripPlanId: newTripPlan.id,
-        });
-      }
-    } catch (error) {
-      console.error("Error retrieving trip plan:", error);
-      return NextResponse.json(
-        { error: "Error retrieving trip plan" },
-        { status: 500 },
-      );
+      return NextResponse.json({ message: "Trip deleted" });
     }
+
+    // ❌ INVALID REQUEST
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
+  } catch (err) {
+    console.error("DELETE error:", err);
+    return NextResponse.json(
+      { error: "Delete failed" },
+      { status: 500 }
+    );
   }
 }

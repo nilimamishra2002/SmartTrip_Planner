@@ -1,149 +1,190 @@
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 from datetime import date
-from langchain_core.output_parsers import JsonOutputParser
 
 import json
 import os
 import random
 import streamlit as st
 
+load_dotenv()
+
+today = date.today().isoformat()
+
+# =====================================================
+# LLM CONFIGURATION
+# =====================================================
+
+llm_gpt = ChatGroq(
+    model="llama-3.1-8b-instant",
+    temperature=0.5,
+    groq_api_key=os.getenv("GROQ_API_KEY"),
+)
+
+output_parser = StrOutputParser()
+
+# =====================================================
+# PROMPT TEMPLATE (ADVANCED STRICT)
+# =====================================================
+
+trip_plan_prompt = ChatPromptTemplate.from_messages([
+(
+"system",
+"""
+You are SmartTripPlanner Advanced Generator.
+
+RULES:
+
+- Return ONLY valid JSON.
+- No markdown.
+- No explanation.
+- All required fields must exist.
+- Numeric fields must be numbers.
+- Budget.total must equal sum of breakdown.
+- Generate dynamic day keys: day1, day2, day3 based on input "days".
+- Each day must include breakfast, lunch, and dinner.
+- Each day must include accommodation.
+- Each day must include at least 2 activities.
+- Ratings must be realistic (3.0 to 5.0).
+- Avoid empty arrays and empty strings.
+- Ensure geographic coherence.
+
+Return ONLY the JSON object.
+"""
+),
+(
+"user",
+"""
+Generate a trip plan with:
+
+Origin: {origin}
+Destination: {destination}
+Days: {days}
+People: {people}
+Budget: {budget}
+Preferences: {preferences}
+Journey Date: {journeyDate}
+"""
+)
+])
+
+chain = trip_plan_prompt | llm_gpt | output_parser
+
+# =====================================================
+# SAFE JSON PARSER
+# =====================================================
+
 def safe_json_parse(text: str):
     try:
         return json.loads(text)
     except Exception as e:
-        st.error("LLM returned invalid JSON")
-        st.subheader("Raw LLM output")
+        st.error("❌ LLM returned invalid JSON.")
+        st.subheader("Raw LLM Output")
         st.code(text)
         raise e
 
+# =====================================================
+# STREAMLIT UI
+# =====================================================
 
-load_dotenv()
+st.title("🚀 Smart Trip Planner (Advanced)")
 
-json_parser = JsonOutputParser()
-
-
-today = date.today().isoformat()
-
-# -------------------- LLM --------------------
-
-llm_gpt = ChatGroq(
-    model="llama-3.1-8b-instant",
-    temperature=0.3,
-    groq_api_key=os.getenv("GROQ_API_KEY"),
-)
-
-# -------------------- Prompts --------------------
-
-trip_plan_prompt = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """
-You are a STRICT Indian travel plan generator API.
-
-Rules:
-- Output ONLY valid JSON
-- JSON MUST be parsable by Python json.loads()
-- Arrays MUST be standard JSON arrays (no numeric keys like 0:, 1:)
-- Every object field MUST be separated by commas
-- No markdown, no explanation
-- All fields must exist
-- Budget.total must equal sum of breakdown
-- Locations must be in Odisha, India
-
-JSON FORMAT:
-
-{{
-  "origin": "string",
-  "destination": "string",
-  "days": number,
-  "people": number,
-  "journeyDate": "string",
-
-  "itinerary": [
-    {{
-      "day": number,
-      "activities": ["string"]
-    }}
-  ],
-
-  "food": [
-    {{
-      "day": number,
-      "breakfast": "string",
-      "lunch": "string",
-      "dinner": "string",
-      "estimated_cost": number
-    }}
-  ],
-
-  "accommodation": [
-    {{
-      "name": "string",
-      "location": "string",
-      "rating": number,
-      "estimated_cost_per_night": number
-    }}
-  ],
-
-  "budget": {{
-    "transportation": number,
-    "food": number,
-    "accommodation": number,
-    "miscellaneous": number,
-    "total": number
-  }}
-}}
-
-"""
-    ),
-    (
-        "user",
-        """
-Create a trip from {origin} to {destination}
-for {days} days with {people} people.
-
-Budget: {budget}
-Preferences: {preferences}
-Trip Type: {tripType}
-Journey Date: {journeyDate}
-Travel Class: {travelClass}
-"""
-    )
-])
-
-
-# -------------------- Streamlit UI --------------------
-
-st.title("Smart Trip Planner")
-
-query = st.text_input("Enter trip details (example: Bhubaneswar to Puri 3 days beach)")
+origin = st.text_input("Origin")
+destination = st.text_input("Destination")
+days = st.number_input("Days", min_value=1, value=3)
+budget = st.number_input("Budget (INR)", min_value=1000, value=6000)
+people = st.number_input("People", min_value=1, value=2)
+preferences = st.text_input("Preferences (beach, temple, nature, etc)")
 submit = st.button("Generate Trip")
 
-if submit and query:
-    # Simple extraction (kept intentionally minimal)
+if submit:
+
+    if not all([origin, destination, preferences]):
+        st.warning("Please fill all required fields.")
+        st.stop()
+
     payload = {
-        "origin": "Bhubaneswar",
-        "destination": "Puri",
-        "days": 3,
-        "people": 2,
-        "budget": 5000,
-        "preferences": "beach",
-        "tripType": "oneWay",
+        "origin": origin,
+        "destination": destination,
+        "days": int(days),
+        "people": int(people),
+        "budget": int(budget),
+        "preferences": preferences,
         "journeyDate": today,
-        "travelClass": "economy",
     }
 
-    chain = trip_plan_prompt | llm_gpt | json_parser
-    trip_data = chain.invoke(payload)
+    try:
+        raw_output = chain.invoke(payload)
 
+        st.subheader("🔍 Raw LLM Output (Debug)")
+        st.code(raw_output)
+
+        trip_data = safe_json_parse(raw_output)
+
+    except Exception:
+        st.stop()
+
+    # =====================================================
+    # SAFE NORMALIZATION
+    # =====================================================
+
+    breakdown = trip_data.get("budget", {}).get("breakdown", {})
+
+    trip_data["budget"] = {
+        "total": int(trip_data.get("budget", {}).get("total", 0)),
+        "breakdown": {
+            "transportation": int(breakdown.get("transportation", 0)),
+            "food": int(breakdown.get("food", 0)),
+            "accommodation": int(breakdown.get("accommodation", 0)),
+            "miscellaneous": int(breakdown.get("miscellaneous", 0)),
+        },
+    }
+
+    for hotel in trip_data.get("accommodation", {}).values():
+        hotel["rating"] = float(hotel.get("rating", 0))
+
+    for meals in trip_data.get("food", {}).values():
+        for meal in meals.values():
+            meal["rating"] = float(meal.get("rating", 0))
+
+    for cp in trip_data.get("checkpoints", []):
+        cp["origin"]["lat"] = float(cp["origin"].get("lat", 0))
+        cp["origin"]["lng"] = float(cp["origin"].get("lng", 0))
+        cp["destination"]["lat"] = float(cp["destination"].get("lat", 0))
+        cp["destination"]["lng"] = float(cp["destination"].get("lng", 0))
+
+    # =====================================================
+    # SAVE GENERATED TRIP
+    # =====================================================
 
     os.makedirs("trips", exist_ok=True)
-    filename = f"trip_{random.randint(100,999)}.json"
 
-    with open(f"trips/{filename}", "w", encoding="utf-8") as f:
-        json.dump(trip_data, f, indent=2)
+    filename = f"trip_advanced_{random.randint(100,999)}.json"
+    filepath = os.path.join("trips", filename)
 
-    st.success("Trip generated!")
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(trip_data, f, indent=4)
+
+    st.success("✅ Trip Generated Successfully!")
     st.json(trip_data)
+
+# =====================================================
+# SIDEBAR: RECENT TRIPS
+# =====================================================
+
+with st.sidebar:
+    st.title("📁 Saved Trips")
+
+    os.makedirs("trips", exist_ok=True)
+    trips = os.listdir("trips")
+
+    for trip_file in trips:
+        path = os.path.join("trips", trip_file)
+
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        with st.expander(trip_file.replace("_", " ").replace(".json", "")):
+            st.json(data)

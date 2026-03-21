@@ -1,131 +1,94 @@
-import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/prisma/prisma-client";
-import { OpenAI } from "openai";
+import { NextResponse } from "next/server";
 
-import * as lancedb from "@lancedb/lancedb";
+export async function POST(req: Request) {
+  const { tripPlanId, images = [], query } = await req.json();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
- 
-async function generateEmbedding(text) {
-  const response = await openai.embeddings.create({
-    model: "text-embedding-ada-002",
-    input: text,
+  const trip = await prisma.tripPlan.findUnique({
+    where: { id: tripPlanId },
+    include: {
+      photos: true,
+      members: true,
+      blogs: true,
+      vlogs: true,
+    },
   });
-  return response.data[0].embedding;
-}
 
-// GET Endpoint
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = new URL(request.url).searchParams;
-    const tripPlanId = searchParams.get("tripPlanId");
-    const query = searchParams.get("query");
-     
-    if (!tripPlanId) {
-      return NextResponse.json(
-        { error: "tripPlanId is required" },
-        { status: 400 },
-      );
-    }
- 
-    const vlogs = await prisma.vlog.findMany({
-      where: {
-        tripPlanId: tripPlanId,
-        content: {
-          contains: query as string,
-          mode: 'insensitive', // Optional: Makes the search case-insensitive
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        author: true,
-      },
-    });
-
-    return NextResponse.json({ vlogs, count: vlogs.length });
-  } catch (error) {
-    console.error("Error fetching images:", error);
+  if (!trip) {
     return NextResponse.json(
-      { error: "Failed to fetch images" },
-      { status: 500 },
+      { error: "Trip not found" },
+      { status: 404 }
     );
   }
-}
- 
-// POST Endpoint
-export async function POST(request: NextRequest) {
-    
-  try {
-    const body = await request.json();
-    const { tripPlanId, query } = body;
 
-    if ( !tripPlanId) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
-    }
-
-    const tripPlan = await prisma.tripPlan.findUnique({
-      where: { id: tripPlanId },
-      include: {
-        members: {
-          select: {
-            name: true,
+  /* ================= NEW FLOW (USER SELECTED IMAGES) ================= */
+  if (images && images.length > 0) {
+    try {
+      // 🔥 Call Python with selected images
+      const response = await fetch(
+        process.env.PYTHON_SERVER_URL + "/vlog/invoke",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            input: {
+              tripData: trip.data,
+              members: trip.members,
+              images, // ✅ USER SELECTED IMAGES
+            },
+          }),
         }
-      },
-    });  
-  
-    const uri = "/tmp/lancedb/";
-    const db = await lancedb.connect(uri);
-  
-    const tableNames = await db.tableNames();
+      );
 
-    const queryEmbedding = await generateEmbedding(query);
-    console.log(tableNames);
-    let images = [];
-    if(tableNames.includes("image")) { 
-      const _tbl = await db.openTable("image");
-            images = (await _tbl.search(queryEmbedding).limit(30).toArray())
-        .filter((image) => image.tripPlanId === tripPlanId).slice(0, 6);
+      const generated = await response.json();
+
+      return NextResponse.json(generated);
+    } catch (err) {
+      console.error("Python error:", err);
+
+      // 🔥 FALLBACK (if Python fails)
+      const fallbackScenes = images.map((img: string, i: number) => ({
+        image: img,
+        voiceover: `Scene ${i + 1}: A beautiful moment from the journey.`,
+      }));
+
+      return NextResponse.json({
+        title: "My Travel Vlog",
+        scenes: fallbackScenes,
+      });
     }
-
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-          { role: "system", content: "You are a travel vlog subtitle maker" },
-          {
-              role: "user",
-              content: ` Suppose You are a travel vlogger subtitle Maker. Write a captivating travel vlog subtitle about your recent trip titled: "${tripPlan?.data?.trip_nime}". Include info about your experience, the journey, and the group members: ${tripPlan?.members.map(member => member.name).join(", ")}. 
-      
-              The trip information is provided below in JSON format: ${JSON.stringify(tripPlan)}.
-        
-              User Query: ${query},
-              Make the subtile as so that It cant exceeds 30 seconds. 
-              Your can generate maximum 5 s for each Photo `,
-          },
-      ],
-  });
-   
-    const contents = completion.choices[0].message.content;
-
-    const imageArray = images.map(image => image.url);
-  
-    return NextResponse.json({ success: true, content : contents, images:imageArray}, { status: 200 });
-
-  } catch (error) {
-    console.error(`Error in POST /api/vlog: ${error.message}`);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
+
+  /* ================= OLD FLOW (QUERY BASED) ================= */
+  if (query) {
+    const response = await fetch(
+      process.env.PYTHON_SERVER_URL + "/vlog/invoke",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          input: {
+            query,
+            tripData: trip.data,
+            members: trip.members,
+            images: trip.photos.map((p) => p.url),
+          },
+        }),
+      }
+    );
+
+    const generated = await response.json();
+
+    return NextResponse.json(generated);
+  }
+
+  /* ================= SAFETY ================= */
+  return NextResponse.json(
+    { error: "Invalid request" },
+    { status: 400 }
+  );
 }
-
-  
-
-  

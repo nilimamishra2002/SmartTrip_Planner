@@ -1,905 +1,938 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
-  Edit,
   MapPin,
-  Clock,
-  Users,
   Calendar,
-  Utensils,
-  Hotel,
-  Navigation,
+  Users,
   Banknote,
-  Check,
-  ChevronDown,
-  Plane,
-  Coffee,
-  UtensilsCrossed,
   Star,
-  Building2,
-  Phone,
-  Globe,
-  Bus,
-  Home,
-  Package,
+  Edit,
+  Save,
+  X,
   Plus,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useSession } from "next-auth/react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import dynamic from "next/dynamic";
+import AiBot from "@/components/ai-bot/page";
 
 
 
-const TourMates = ({ members = [], tripPlanId, onMemberAdded }) => {
+const LocationCard = dynamic(
+  () => import("@/components/map/LocationCard"),
+  { ssr: false }
+);
 
-  console.log("TourMates", members, tripPlanId, onMemberAdded);
-  const [showAddMember, setShowAddMember] = useState(false);
-  const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+interface TripPlanProps {
+  tripPlan: any;
+}
 
-  const handleAddMember = async () => {
-    if (!newMemberEmail) return;
-    
-    setIsSubmitting(true);
+export default function TripPlan({ tripPlan }: TripPlanProps) {
+  const { data: session } = useSession();
+
+  const initialData = tripPlan?.data ?? {};
+
+  const [tripData, setTripData] = useState<any>(initialData);
+  useEffect(() => {
+  if (tripPlan?.data) {
+    setTripData(tripPlan.data);
+    setEditData(tripPlan.data);
+    setSelectedCheckpoint(0); // reset selection
+    setWeatherData(null);
+  }
+}, [tripPlan]);
+  console.log("TripData FULL:", tripData);
+  const [editData, setEditData] = useState<any>(initialData);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [blogs, setBlogs] = useState<any[]>([]);
+
+  const current = isEditMode ? editData : tripData;
+
+  const [weatherData, setWeatherData] = useState<any>(null);
+  const [selectedCheckpoint, setSelectedCheckpoint] = useState(0);
+
+const checkpoints =
+  tripData?.checkPoints ||
+  tripData?.checkpoints ||
+  [];
+
+  console.log("Checkpoints:", checkpoints);
+console.log("First checkpoint:", checkpoints[0]);
+
+useEffect(() => {
+const checkpoints =
+  current?.checkpoints ||
+  current?.checkPoints ||
+  [];
+
+  if (!checkpoints.length) return;
+
+  const checkpoint = checkpoints[selectedCheckpoint];
+
+  const lat = checkpoint?.destination?.lat;
+  const lon = checkpoint?.destination?.lng;
+
+  console.log("REAL DATA:", realData);
+  console.log("LAT LON:", lat, lon);
+
+  if (!lat || !lon) {
+    console.warn("Invalid coords:", checkpoint);
+    return;
+  }
+
+  const fetchWeather = async () => {
     try {
-      const response = await fetch('/api/trip', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tripPlanId,
-          newMemberEmail,
-        }),
+      const params = new URLSearchParams({
+        lat,
+        lon,
+        days: "5",
       });
-      
-      if (response.ok) {
-        const result = await response.json();
-        onMemberAdded?.(result);
-        setNewMemberEmail('');
-        setShowAddMember(false);
-      }
-    } catch (error) {
-      console.error('Error adding member:', error);
-    } finally {
-      setIsSubmitting(false);
+
+      const res = await fetch(`/api/weather?${params}`);
+      const data = await res.json();
+
+      setWeatherData(data?.forecast ? data : null);
+    } catch (err) {
+      console.error(err);
+      setWeatherData(null);
     }
   };
 
-  return (
-    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader className="bg-gradient-to-r from-violet-50 to-violet-100">
-        <CardTitle className="text-2xl text-violet-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="h-6 w-6" />
-            Tour Mates
-          </div>
-          <Dialog open={showAddMember} onOpenChange={setShowAddMember}>
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                className="bg-violet-100 hover:bg-violet-200 border-violet-200"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Member
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-semibold">Add New Tour Mate</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Input
-                    type="email"
-                    placeholder="Enter member's email"
-                    value={newMemberEmail}
-                    onChange={(e) => setNewMemberEmail(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAddMember(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleAddMember}
-                    disabled={!newMemberEmail || isSubmitting}
-                    className="bg-violet-600 hover:bg-violet-700 text-white"
-                  >
-                    {isSubmitting ? 'Adding...' : 'Add Member'}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-          {members.map((member, index) => (
-            <div
-              key={index}
-              className="flex w-full items-center gap-3 p-3 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors duration-200"
-            >
-              <div className="relative">
-                <img
-                  src={member.image? member.image : '/tourist.jpg'}
-                  alt={member.name}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-violet-200"
-                />
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 truncate">{member.name}</p>
-                <p className="text-sm text-gray-500 truncate">{member.email}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
- 
+  fetchWeather();
+}, [selectedCheckpoint, current]);
 
-
-const TripPlan = (selectedTripPlan: any) => {
-  const { data: session } = useSession();
-  const [tripData, setTripData] = useState(selectedTripPlan.tripPlan.data);
-  const [editMode, setEditMode] = useState(false);
-  const [editData, setEditData] = useState(selectedTripPlan.tripPlan.data);
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(1);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-
-  if (!selectedTripPlan) {
-    console.log("Error");
-    return <></>;
-  }
+  /* ================= SAVE / REGENERATE ================= */
 
   const handleSave = async () => {
     try {
-      const response = await fetch("/api/trip", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      setIsSaving(true);
+
+      const hasCoreChange =
+        editData.origin !== tripData.origin ||
+        editData.destination !== tripData.destination ||
+        editData.days !== tripData.days ||
+        editData.people !== tripData.people;
+
+      const endpoint = hasCoreChange ? "/api/trip/regenerate" : "/api/trip";
+
+      const method = hasCoreChange ? "POST" : "PUT";
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tripPlan: JSON.stringify(editData),
-          tripPlanId: tripData.id,
-          email: session?.user.email, // Ensure email is defined in the scope
+          tripPlanId: tripPlan.id,
+          data: editData,
         }),
       });
-      const updatedData = await response.json();
-      setTripData(updatedData);
-      localStorage.setItem("tripPlan", JSON.stringify(updatedData));
-      setIsEditing(false);
-    } catch (error) {
-      console.error("Error updating trip plan:", error);
+
+      if (!res.ok) throw new Error("Save failed");
+
+      const updated = await res.json();
+
+      setTripData(updated.data);
+      setEditData(updated.data);
+      setIsEditMode(false);
+    } catch (err) {
+      console.error("Save error:", err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleConfirmTrip = () => {
-    setShowConfirmation(true);
-    // Additional confirmation logic here
+  /* ================= ADD MEMBER ================= */
+
+  const handleAddMember = async (email: string) => {
+    try {
+      const res = await fetch("/api/trip", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tripPlanId: tripPlan.id,
+          email,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add");
+
+      // safest refresh
+      window.location.reload();
+    } catch (err) {
+      console.error("Add member error:", err);
+    }
   };
 
-  const updateTripDetails = (field, value) => {
-    setEditData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  /* ================= FETCH BLOGS ================= */
+
+  const fetchBlogs = async () => {
+    const res = await fetch(`/api/blog?tripPlanId=${tripPlan.id}`);
+    const data = await res.json();
+    console.log("Fetched blogs:", data); // 🔥 debug
+    setBlogs(data.blogs || []);
   };
 
-  const updateBudget = (category, amount) => {
-    setEditData((prev) => ({
-      ...prev,
-      budget: {
-        ...prev.budget,
-        breakdown: {
-          ...prev.budget.breakdown,
-          [category]: amount,
-        },
+useEffect(() => {
+  if (tripPlan?.id) {
+    fetchBlogs();
+  }
+}, [tripPlan?.id]);
+
+  if (!current) return <div>Loading...</div>;
+
+  const handleDelete = async () => {
+  const confirmDelete = confirm("Are you sure you want to delete this trip?");
+  if (!confirmDelete) return;
+
+  try {
+    const res = await fetch("/api/trip", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
       },
-    }));
-  };
+      body: JSON.stringify({
+        tripPlanId: tripPlan.id,
+      }),
+    });
 
-  const MealIcon = ({ meal }) => {
-    switch (meal) {
-      case "breakfast":
-        return <Coffee className="h-5 w-5 text-amber-600" />;
-      case "lunch":
-        return <UtensilsCrossed className="h-5 w-5 text-amber-600" />;
-      case "dinner":
-        return <Utensils className="h-5 w-5 text-amber-600" />;
-      default:
-        return <Utensils className="h-5 w-5 text-amber-600" />;
+    if (!res.ok) throw new Error("Delete failed");
+
+    // 🔥 redirect after delete
+    window.location.href = "/trip"; // or dashboard
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete trip");
+  }
+};
+
+const [realData, setRealData] = useState<any>({});
+const fetchRealData = async (lat: number, lon: number) => {
+  try {
+    const [hotelsRes, foodRes, amenitiesRes] = await Promise.all([
+      fetch(`/api/places?lat=${lat}&lon=${lon}&type=hotel`),
+      fetch(`/api/places?lat=${lat}&lon=${lon}&type=restaurant`),
+      fetch(`/api/amenities?lat=${lat}&lon=${lon}`)
+    ]);
+
+    const hotels = await hotelsRes.json();
+    const food = await foodRes.json();
+    const amenities = await amenitiesRes.json();
+
+    return {
+      hotels,
+      food,
+      amenities,
+    };
+  } catch (err) {
+    console.error("Real data failed:", err);
+    return null;
+  }
+};
+
+useEffect(() => {
+  const checkpoints =
+    current?.checkpoints || current?.checkPoints || [];
+
+  if (!checkpoints.length) return;
+
+  const checkpoint = checkpoints[selectedCheckpoint];
+
+const lat =
+  checkpoint?.destination?.lat ||
+  checkpoint?.destination?.latitude;
+
+const lon =
+  checkpoint?.destination?.lng ||
+  checkpoint?.destination?.longitude;
+
+  if (!lat || !lon) return;
+
+  const load = async () => {
+    const data = await fetchRealData(lat, lon);
+
+    if (data) {
+      setRealData(data);
+    } else {
+      setRealData({}); // fallback trigger
     }
   };
 
-  if (!tripData) return <div>Loading...</div>;
+  load();
+}, [selectedCheckpoint, current]);
 
-  return (
-    <div className="h-screen overflow-auto bg-gray-50">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header Actions - Fixed at top */}
-        <div className="sticky top-0 z-50 bg-gray-50 py-4 mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-bold text-gray-800">
-              {tripData.trip_name}
-            </h1>
-            <div className="space-x-4">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="bg-blue-50 hover:bg-blue-100 text-blue-600"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Trip Data
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl mb-6">
-                      Edit Trip Details
-                    </DialogTitle>
-                  </DialogHeader>
-                  <ScrollArea className="max-h-[60vh]">
-                    <div className="space-y-6 p-4">
-                      {/* Basic Details */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Trip Name</Label>
-                          <Input
-                            value={editData.trip_name || ""}
-                            onChange={(e) =>
-                              updateTripDetails("trip_name", e.target.value)
-                            }
-                            className="border-gray-300"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Journey Date</Label>
-                          <Input
-                            type="date"
-                            value={editData.journeyDate || ""}
-                            onChange={(e) =>
-                              updateTripDetails("journeyDate", e.target.value)
-                            }
-                            className="border-gray-300"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Number of Days</Label>
-                          <Input
-                            type="number"
-                            value={editData.days || ""}
-                            onChange={(e) =>
-                              updateTripDetails(
-                                "days",
-                                parseInt(e.target.value),
-                              )
-                            }
-                            className="border-gray-300"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Number of Travelers</Label>
-                          <Input
-                            type="number"
-                            value={editData.people || ""}
-                            onChange={(e) =>
-                              updateTripDetails(
-                                "people",
-                                parseInt(e.target.value),
-                              )
-                            }
-                            className="border-gray-300"
-                          />
-                        </div>
-                      </div>
+useEffect(() => {
+  if (!tripData) return;
 
-                      {/* Budget Section */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">
-                          Budget Breakdown
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          {Object.entries(editData.budget?.breakdown || {}).map(
-                            ([category, amount]) => (
-                              <div key={category} className="space-y-2">
-                                <Label className="capitalize">{category}</Label>
-                                <Input
-                                  type="number"
-                                  value={amount}
-                                  onChange={(e) =>
-                                    updateBudget(
-                                      category,
-                                      parseInt(e.target.value),
-                                    )
-                                  }
-                                  className="border-gray-300"
-                                />
-                              </div>
-                            ),
-                          )}
-                        </div>
-                      </div>
+  const checkpoint = checkpoints?.[0]; // ONLY FIRST
 
-                      {/* Itinerary Editor */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">
-                          Daily Itinerary
-                        </h3>
-                        <Select
-                          value={selectedDay.toString()}
-                          onValueChange={(value) =>
-                            setSelectedDay(parseInt(value))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select day" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: editData.days || 0 }).map(
-                              (_, idx) => (
-                                <SelectItem
-                                  key={idx + 1}
-                                  value={(idx + 1).toString()}
-                                >
-                                  Day {idx + 1}
-                                </SelectItem>
-                              ),
-                            )}
-                          </SelectContent>
-                        </Select>
+  fetch(`/api/places?...`)
+  fetch(`/api/amenities?...`)
+}, [tripData.id]);
 
-                        <div className="space-y-4">
-                          {["breakfast", "lunch", "dinner"].map((meal) => (
-                            <div key={meal} className="space-y-2">
-                              <Label className="capitalize">{meal}</Label>
-                              <Input
-                                value={
-                                  editData.food?.[selectedDay]?.[meal]?.title ||
-                                  ""
-                                }
-                                onChange={(e) => {
-                                  const updatedFood = {
-                                    ...editData.food,
-                                    [selectedDay]: {
-                                      ...editData.food?.[selectedDay],
-                                      [meal]: {
-                                        ...editData.food?.[selectedDay]?.[meal],
-                                        title: e.target.value,
-                                      },
-                                    },
-                                  };
-                                  updateTripDetails("food", updatedFood);
-                                }}
-                                className="border-gray-300"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+const [amenities, setAmenities] = useState<any[]>([]);
 
-                      <div className="flex justify-end space-x-4">
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsEditing(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={handleSave}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Save Changes
-                        </Button>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </DialogContent>
-              </Dialog>
-            </div>
+useEffect(() => {
+  const cp = current.checkpoints?.[selectedCheckpoint];
+
+  if (!cp) return;
+
+  fetch(`/api/amenities?lat=${cp.destination.lat}&lon=${cp.destination.lng}`)
+    .then(res => res.json())
+    .then(data => setAmenities(data?.amenities || []))
+    .catch(() => setAmenities([]));
+}, [selectedCheckpoint, current]);
+
+  /* ================= UI ================= */
+
+return (
+  <div className="min-h-screen bg-gradient-to-br from-slate-950 via-black to-slate-900 text-white p-8">
+    {/* ================= HEADER ================= */}
+    <div className="flex justify-between items-start mb-10">
+      <div>
+        {isEditMode ? (
+          <div className="flex gap-4">
+            <Input
+              value={editData.origin}
+              onChange={(e) =>
+                setEditData({ ...editData, origin: e.target.value })
+              }
+            />
+            <Input
+              value={editData.destination}
+              onChange={(e) =>
+                setEditData({
+                  ...editData,
+                  destination: e.target.value,
+                })
+              }
+            />
           </div>
+        ) : (
+          <h1 className="text-4xl font-bold">
+            {current.origin} → {current.destination}
+          </h1>
+        )}
+        <p className="text-slate-400 mt-2">
+          {current.days} Days • {current.people} Travelers • ₹
+          {current?.budget?.total}
+        </p>
+      </div>
 
-          {/* Trip Overview Card */}
-          <div className="space-y-6 pb-20">
-            {/* Trip Overview Card */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
-                <CardTitle className="text-2xl text-blue-800">
-                  Trip Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent> 
+      <div>
+        {isEditMode ? (
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditData(tripData);
+                setIsEditMode(false);
+              }}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-4">
-                  <div className="flex items-center gap-4 bg-blue-50 p-4 rounded-lg">
-                    <div className="bg-blue-100 p-2 rounded-full">
-                      <MapPin className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-blue-600 font-medium">
-                        From - To
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {tripData.origin} - {tripData.destination}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 bg-green-50 p-4 rounded-lg">
-                    <div className="bg-green-100 p-2 rounded-full">
-                      <Calendar className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-green-600 font-medium">
-                        Duration
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {tripData.days} Days
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 bg-purple-50 p-4 rounded-lg">
-                    <div className="bg-purple-100 p-2 rounded-full">
-                      <Users className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-purple-600 font-medium">
-                        People
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {tripData.people} Travelers
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 bg-amber-50 p-4 rounded-lg">
-                    <div className="bg-amber-100 p-2 rounded-full">
-                      <Banknote className="h-6 w-6 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-amber-600 font-medium">
-                        Total Budget
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {tripData.budget.total} BDT
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-
-            
-            <TourMates
-                  members={selectedTripPlan.tripPlan.members}
-                  tripPlanId={tripData.id}
-                  onMemberAdded={(updatedTripPlan) => {
-                    setTripData(updatedTripPlan);
-                  }}
-
-                />
-
-            {/* Budget Breakdown */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-amber-100">
-                <CardTitle className="text-2xl text-amber-800">
-                  Budget Breakdown
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-4">
-                  <div className="flex items-center gap-4 bg-amber-50 p-4 rounded-lg">
-                    <div className="bg-amber-100 p-2 rounded-full">
-                      <Utensils className="h-6 w-6 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-amber-600 font-medium">Food</p>
-                      <p className="font-semibold text-gray-800">
-                        {tripData.budget.breakdown.food} BDT
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 bg-amber-50 p-4 rounded-lg">
-                    <div className="bg-amber-100 p-2 rounded-full">
-                      <Home className="h-6 w-6 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-amber-600 font-medium">
-                        Accommodation
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {tripData.budget.breakdown.accommodation} BDT
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 bg-amber-50 p-4 rounded-lg">
-                    <div className="bg-amber-100 p-2 rounded-full">
-                      <Package className="h-6 w-6 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-amber-600 font-medium">
-                        Miscellaneous
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {tripData.budget.breakdown.miscellaneous} BDT
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 bg-amber-50 p-4 rounded-lg">
-                    <div className="bg-amber-100 p-2 rounded-full">
-                      <Bus className="h-6 w-6 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-amber-600 font-medium">
-                        Transportation
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {tripData.budget.breakdown.transportation} BDT
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Food Schedule Card */}
-            <Card className="shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-amber-100">
-                <CardTitle className="text-2xl text-amber-800">
-                  <div className="flex items-center gap-2">
-                    <Utensils className="h-6 w-6" />
-                    Food Schedule
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[500px] pr-4">
-                  <Accordion type="single" collapsible className="w-full">
-                    {Array.from({ length: tripData.days }).map(
-                      (_, dayIndex) => {
-                        const dayNumber = (dayIndex + 1).toString();
-                        return (
-                          <AccordionItem
-                            key={dayIndex}
-                            value={`day-${dayNumber}`}
-                          >
-                            <AccordionTrigger className="text-lg font-semibold hover:bg-amber-50 p-4 rounded-lg">
-                              Day {dayNumber}
-                            </AccordionTrigger>
-                            <AccordionContent className="space-y-4 p-4">
-                              {["breakfast", "lunch", "dinner"].map((meal) => {
-                                const mealData =
-                                  tripData.food[dayNumber]?.[meal];
-                                return mealData ? (
-                                  <div
-                                    key={meal}
-                                    className="flex items-start gap-4 p-4 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors duration-300"
-                                  >
-                                    <div className="bg-amber-100 p-2 rounded-full">
-                                      <MealIcon meal={meal} />
-                                    </div>
-                                    <div className="flex-1">
-                                      <p className="font-medium capitalize text-amber-800">
-                                        {meal}
-                                      </p>
-                                      <p className="text-lg font-semibold">
-                                        {mealData.title}
-                                      </p>
-                                      <p className="text-sm text-gray-600">
-                                        {mealData.address}
-                                      </p>
-                                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 mt-2">
-                                        <span className="flex items-center gap-1">
-                                          <Star
-                                            className="h-4 w-4 text-amber-500"
-                                            fill="currentColor"
-                                          />
-                                          {mealData.rating}
-                                        </span>
-                                        <span>•</span>
-                                        <span>{mealData.category}</span>
-                                        {mealData.phoneNumber && (
-                                          <>
-                                            <span>•</span>
-                                            <span>{mealData.phoneNumber}</span>
-                                          </>
-                                        )}
-                                        {mealData.website && (
-                                          <>
-                                            <span>•</span>
-                                            <span className="text-amber-600 hover:underline cursor-pointer">
-                                              Visit Website
-                                            </span>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : null;
-                              })}
-                            </AccordionContent>
-                          </AccordionItem>
-                        );
-                      },
-                    )}
-                  </Accordion>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-
-            {/* Accommodation Card */}
-            <Card className="shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100">
-                <CardTitle className="text-2xl text-indigo-800">
-                  <div className="flex items-center gap-2">
-                    <Hotel className="h-6 w-6" />
-                    Accommodations
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[500px] pr-4">
-                  <div className="grid gap-6">
-                    {Array.from({ length: tripData.days }).map(
-                      (_, dayIndex) => {
-                        const dayNumber = (dayIndex + 1).toString();
-                        const accommodationData =
-                          tripData.accommodation[dayNumber];
-
-                        if (!accommodationData) return null;
-
-                        return (
-                          <div
-                            key={dayIndex}
-                            className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300"
-                          >
-                            <div className="bg-indigo-50 px-4 py-2 rounded-t-lg">
-                              <h3 className="text-lg font-semibold text-indigo-800">
-                                Day {dayNumber}
-                              </h3>
-                            </div>
-                            <div className="p-4">
-                              <div className="flex items-start gap-4">
-                                <div className="bg-indigo-100 p-3 rounded-full">
-                                  <Building2 className="h-6 w-6 text-indigo-600" />
-                                </div>
-                                <div className="flex-1">
-                                  <h4 className="text-xl font-semibold">
-                                    {accommodationData.title}
-                                  </h4>
-                                  <p className="text-gray-600 mt-1">
-                                    {accommodationData.address}
-                                  </p>
-                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                                    <div className="bg-indigo-50 p-3 rounded-lg">
-                                      <p className="text-sm text-indigo-600 font-medium">
-                                        Rating
-                                      </p>
-                                      <p className="text-lg font-semibold flex items-center gap-1">
-                                        <Star
-                                          className="h-4 w-4 text-indigo-500"
-                                          fill="currentColor"
-                                        />
-                                        {accommodationData.rating}
-                                      </p>
-                                    </div>
-                                    <div className="bg-indigo-50 p-3 rounded-lg">
-                                      <p className="text-sm text-indigo-600 font-medium">
-                                        Category
-                                      </p>
-                                      <p className="text-lg font-semibold">
-                                        {accommodationData.category}
-                                      </p>
-                                    </div>
-                                    {accommodationData.amenities && (
-                                      <div className="bg-indigo-50 p-3 rounded-lg">
-                                        <p className="text-sm text-indigo-600 font-medium">
-                                          Amenities
-                                        </p>
-                                        <p className="text-lg font-semibold">
-                                          {accommodationData.amenities}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-wrap gap-4 mt-4">
-                                    {accommodationData.phoneNumber && (
-                                      <a
-                                        href={`tel:${accommodationData.phoneNumber}`}
-                                      >
-                                        <Button
-                                          variant="outline"
-                                          className="text-indigo-600"
-                                        >
-                                          <Phone className="h-4 w-4 mr-2" />
-                                          {accommodationData.phoneNumber}
-                                        </Button>
-                                      </a>
-                                    )}
-                                    {accommodationData.website && (
-                                      <a
-                                        href={accommodationData.website}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Button
-                                          variant="outline"
-                                          className="text-indigo-600"
-                                        >
-                                          <Globe className="h-4 w-4 mr-2" />
-                                          Visit Website
-                                        </Button>
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      },
-                    )}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-
-            {/* Checkpoints */}
-            <Card className="shadow-lg bg-white">
-              <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b">
-                <CardTitle className="text-2xl font-bold text-emerald-800">
-                  Travel Checkpoints
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-emerald-50/50">
-                        <TableHead className="font-semibold text-emerald-700">
-                          From
-                        </TableHead>
-                        <TableHead className="font-semibold text-emerald-700">
-                          To
-                        </TableHead>
-                        <TableHead className="font-semibold text-emerald-700">
-                          Departure
-                        </TableHead>
-                        <TableHead className="font-semibold text-emerald-700">
-                          Arrival
-                        </TableHead>
-                        <TableHead className="font-semibold text-emerald-700">
-                          Tips
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tripData.checkpoints.map((checkpoint, index) => (
-                        <TableRow
-                          key={index}
-                          className="hover:bg-emerald-50/30 m-4 transition-colors duration-200"
-                        >
-                          <TableCell className="py-4">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-emerald-600" />
-                              <span className="text-slate-700">
-                                {checkpoint.origin.location}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="flex items-center gap-2">
-                              <Navigation className="h-4 w-4 text-emerald-600" />
-                              <span className="text-slate-700">
-                                {checkpoint.destination.location}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-emerald-600" />
-                              <span className="text-slate-700">
-                                {checkpoint.logistics.departure_time}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="flex items-center gap-2">
-                              <Plane className="h-4 w-4 text-emerald-600" />
-                              <span className="text-slate-700">
-                                {checkpoint.logistics.arrival_time}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="bg-emerald-50 p-3 rounded-lg text-sm text-slate-700 shadow-sm border border-emerald-100">
-                              {checkpoint.logistics.tips}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="bg-emerald-600"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
           </div>
+        ) : (
+          <div className="flex gap-3">
+  <Button
+    onClick={() => setIsEditMode(true)}
+    className="bg-indigo-600"
+  >
+    <Edit className="w-4 h-4 mr-2" />
+    Edit Trip
+  </Button>
 
-          {/* Confirmation Dialog */}
-          <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-2xl">
-                  Confirm Your Trip
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <Alert className="bg-green-50 border-green-200">
-                  <AlertDescription className="text-green-800">
-                    You're about to confirm your trip to {tripData.destination}.
-                    This will:
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>Lock in your itinerary</li>
-                      <li>Send confirmation emails to all travelers</li>
-                      <li>Begin the booking process for accommodations</li>
-                      <li>Generate your travel documents</li>
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              </div>
-            </DialogContent>
-          </Dialog>
+  <Button
+    variant="destructive"
+    onClick={handleDelete}
+  >
+    Delete
+  </Button>
+</div>
+        )}
+      </div>
+    </div>
+
+    {/* ================= TABS ================= */}
+    <Tabs defaultValue="overview" className="w-full">
+      <TabsList className="grid grid-cols-9 mb-6">
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
+        <TabsTrigger value="map">Map</TabsTrigger>
+<TabsTrigger value="weather">Weather</TabsTrigger>
+        <TabsTrigger value="mates">Tourmates</TabsTrigger>
+        <TabsTrigger value="blogs">Blogs</TabsTrigger>
+        <TabsTrigger value="media">Media</TabsTrigger>
+<TabsTrigger value="vlogs">Vlogs</TabsTrigger>
+<TabsTrigger value="assistant">AI</TabsTrigger>
+      </TabsList>
+
+      {/* ================= OVERVIEW ================= */}
+      <TabsContent value="overview">
+  <div className="space-y-8">
+
+    {/* EXISTING GRID (UNCHANGED STYLE) */}
+    <div className="grid md:grid-cols-4 gap-6 text-center">
+      <div>
+        <Calendar className="mx-auto mb-2" />
+        <p>{current.days} Days</p>
+      </div>
+      <div>
+        <Users className="mx-auto mb-2" />
+        <p>{current.people} Travelers</p>
+      </div>
+      <div>
+        <Banknote className="mx-auto mb-2" />
+        <p>₹{current?.budget?.total}</p>
+      </div>
+      <div>
+        <MapPin className="mx-auto mb-2" />
+        <p>
+          {current.origin} → {current.destination}
+        </p>
+      </div>
+    </div>
+
+    {/* 🔥 ADDED (ONLY NEW THING) */}
+    <div className="bg-slate-800/60 rounded-3xl p-6 border border-slate-700">
+      <h3 className="text-lg font-semibold mb-4">
+        Budget Breakdown
+      </h3>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div>
+          🚗
+          <p className="text-sm">Transport</p>
+          <p className="font-semibold">
+            ₹{current?.budget?.breakdown?.transportation}
+          </p>
+        </div>
+
+        <div>
+          🍽️
+          <p className="text-sm">Food</p>
+          <p className="font-semibold">
+            ₹{current?.budget?.breakdown?.food}
+          </p>
+        </div>
+
+        <div>
+          🏨
+          <p className="text-sm">Stay</p>
+          <p className="font-semibold">
+            ₹{current?.budget?.breakdown?.accommodation}
+          </p>
+        </div>
+
+        <div>
+          🎟️
+          <p className="text-sm">Misc</p>
+          <p className="font-semibold">
+            ₹{current?.budget?.breakdown?.miscellaneous}
+          </p>
         </div>
       </div>
     </div>
-  );
-};
 
-export default TripPlan;
+  </div>
+</TabsContent>
+
+{/* ================= ITINERARY ================= */}
+<TabsContent value="itinerary">
+  <div className="space-y-10">
+
+    {current.itinerary?.map((day: any, i: number) => {
+      const dayKey = `day${i + 1}`;
+      const meals =
+  current.food?.[dayKey] ||
+  current.food?.day1 || // fallback
+  null;
+      const stay = current.accommodation?.[dayKey];
+      const checkpoint = current.checkpoints?.[i];
+      // const amenities = realData?.amenities?.[dayKey] || [];
+
+      return (
+        <div
+          key={day.day}
+          className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 rounded-3xl p-6 shadow-xl"
+        >
+          {/* ===== DAY HEADER ===== */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-semibold text-indigo-400">
+              Day {day.day}
+            </h2>
+
+            <span className="text-xs bg-indigo-600/20 px-3 py-1 rounded-full">
+              Planned
+            </span>
+          </div>
+
+          {/* ===== ACTIVITIES ===== */}
+          <div className="mb-8">
+            <p className="text-sm text-slate-400 mb-3">📍 Activities</p>
+
+            <div className="space-y-3">
+              {day.activities?.map((activity: string, idx: number) => (
+                <div
+                  key={idx}
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 hover:border-indigo-500 transition"
+                >
+                  {activity}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ===== MEALS ===== */}
+          <div className="mb-8">
+            <p className="text-sm text-slate-400 mb-3">🍽 Meals</p>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {["breakfast", "lunch", "dinner"].map((meal) => {
+                const item = meals?.[meal];
+                if (!item) return null;
+
+                return (
+                  <div
+                    key={meal}
+                    onClick={() =>
+                      window.open(
+                        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.title + " " + item.address)}`
+                      )
+                    }
+                    className="cursor-pointer bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-4 hover:border-indigo-500 transition"
+                  >
+                    <p className="text-xs text-slate-400 capitalize">
+                      {meal}
+                    </p>
+
+                    <p className="font-semibold mt-1">{item.title}</p>
+
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-yellow-400 text-sm">
+                        ⭐ {item.rating}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {item.category}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ===== STAY ===== */}
+          <div className="mb-8">
+            <p className="text-sm text-slate-400 mb-3">🏨 Accommodation</p>
+
+            {stay ? (
+              <div
+                onClick={() =>
+                  window.open(
+                    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.title + " " + stay.address)}`
+                  )
+                }
+                className="cursor-pointer bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-5 hover:border-indigo-500 transition"
+              >
+                <div className="flex justify-between items-center">
+                  <p className="font-semibold text-lg">{stay.title}</p>
+                  <span className="text-yellow-400">
+                    ⭐ {stay.rating}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400 mt-1">
+                  {stay.category}
+                </p>
+
+                <p className="text-xs text-slate-500 mt-2">
+                  {stay.address}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">
+                No stay data available
+              </p>
+            )}
+          </div>
+
+          {/* ===== TRAVEL INFO ===== */}
+          {checkpoint && (
+            <div className="mb-6">
+              <p className="text-sm text-slate-400 mb-3">
+                🚗 Travel Info
+              </p>
+
+              <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-2">
+                <p className="text-sm">
+                  <span className="text-slate-400">From:</span>{" "}
+                  {checkpoint.origin.location}
+                </p>
+
+                <p className="text-sm">
+                  <span className="text-slate-400">To:</span>{" "}
+                  {checkpoint.destination.location}
+                </p>
+
+                <p className="text-xs text-slate-400">
+                  🕒 {checkpoint.logistics.departure_time} →{" "}
+                  {checkpoint.logistics.arrival_time}
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  {checkpoint.logistics.tips}
+                </p>
+
+                <button
+                  onClick={() =>
+                    window.open(
+                      `https://www.google.com/maps/dir/?api=1&origin=${checkpoint.origin.lat},${checkpoint.origin.lng}&destination=${checkpoint.destination.lat},${checkpoint.destination.lng}`
+                    )
+                  }
+                  className="mt-2 text-xs bg-indigo-600 px-3 py-1 rounded-lg hover:bg-indigo-700"
+                >
+                  View Route
+                </button>
+              </div>
+            </div>
+          )}
+          {/* ===== AMENITIES ===== */}
+<div className="mt-6">
+  <details className="group">
+    <summary className="cursor-pointer text-sm text-slate-400 flex items-center justify-between">
+      🚨 Nearby Essentials
+      <span className="text-xs group-open:rotate-180 transition">▼</span>
+    </summary>
+
+    <div className="mt-4 grid md:grid-cols-3 gap-3">
+      {amenities?.length > 0 ? (
+        amenities.slice(0, 6).map((a: any, i: number) => (
+          <div
+            key={i}
+            onClick={() =>
+              window.open(
+                `https://www.google.com/maps/search/?api=1&query=${a.lat},${a.lon}`
+              )
+            }
+            className="cursor-pointer bg-slate-800 border border-slate-700 p-3 rounded-lg hover:border-indigo-500 transition"
+          >
+            <p className="text-sm font-medium">{a.name}</p>
+            <p className="text-xs text-slate-400">{a.type}</p>
+          </div>
+        ))
+      ) : (
+        <p className="text-xs text-slate-500">
+          No nearby amenities available
+        </p>
+      )}
+    </div>
+  </details>
+</div>
+        </div>
+      );
+    })}
+  </div>
+</TabsContent>
+
+      <TabsContent value="map">
+  <div className="space-y-6">
+
+    {/* CHECKPOINT SELECTOR */}
+    <div className="flex gap-2 flex-wrap">
+      {current?.checkpoints?.map((_: any, index: number) => (
+        <Button
+          key={index}
+          variant={selectedCheckpoint === index ? "default" : "outline"}
+          onClick={() => setSelectedCheckpoint(index)}
+        >
+          Stop {index + 1}
+        </Button>
+      ))}
+    </div>
+
+    {/* MAP */}
+{current?.checkpoints?.[selectedCheckpoint] && (
+  <div className="h-[500px] rounded-xl overflow-hidden">
+    <LocationCard
+      origin={{
+        latitude: current.checkpoints[selectedCheckpoint].origin.lat,
+        longitude: current.checkpoints[selectedCheckpoint].origin.lng,
+        location:
+          current.checkpoints[selectedCheckpoint].origin.location,
+      }}
+      destination={{
+        latitude: current.checkpoints[selectedCheckpoint].destination.lat,
+        longitude:
+          current.checkpoints[selectedCheckpoint].destination.lng,
+        location:
+          current.checkpoints[selectedCheckpoint].destination.location,
+      }}
+    />
+  </div>
+)}
+  </div>
+</TabsContent>
+
+<TabsContent value="weather">
+  <div className="space-y-6">
+
+    {/* CHECKPOINT SELECTOR */}
+    <div className="flex gap-2 flex-wrap">
+      {current?.checkpoints?.map((_: any, index: number) => (
+        <Button
+          key={index}
+          variant={selectedCheckpoint === index ? "default" : "outline"}
+          onClick={() => setSelectedCheckpoint(index)}
+        >
+          Stop {index + 1}
+        </Button>
+      ))}
+    </div>
+
+    {/* WEATHER DISPLAY */}
+    {weatherData?.forecast?.length > 0 ? (
+  <div className="flex gap-4 overflow-x-auto">
+    {weatherData.forecast.map((day: any, i: number) => (
+      <div
+        key={i}
+        className={`min-w-[180px] p-4 rounded-xl shadow-lg ${
+          day.condition.toLowerCase().includes("rain")
+            ? "bg-red-900/40 border border-red-500"
+            : "bg-slate-800 border border-slate-700"
+        }`}
+      >
+        <p className="font-semibold">{day.date}</p>
+        <p className="text-sm text-slate-300">{day.condition}</p>
+
+        <p className="mt-2">
+          🌡 {day.mintemp_c}°C - {day.maxtemp_c}°C
+        </p>
+      </div>
+    ))}
+  </div>
+) : (
+  <p className="text-slate-400">
+    Weather data not available
+  </p>
+)}
+</div>
+</TabsContent>
+
+      {/* ================= TOUR MATES ================= */}
+      <TabsContent value="mates">
+        <div className="bg-slate-800/60 rounded-3xl p-6 border border-slate-700">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Tour Mates</h2>
+
+            <Button
+              size="sm"
+              onClick={() => {
+                const email = prompt("Enter member email");
+                if (email) handleAddMember(email);
+              }}
+              className="bg-indigo-600"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add
+            </Button>
+          </div>
+
+          {/* Logged-in user */}
+          {session?.user && (
+            <div className="bg-indigo-900 border border-indigo-500 rounded-lg p-4 mb-3">
+              <p>{session.user.email} (You)</p>
+            </div>
+          )}
+
+          {/* Members from Prisma relation */}
+          {tripPlan.members?.length > 0 ? (
+            tripPlan.members.map((mate: any) => (
+              <div
+                key={mate.id}
+                className="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-2 flex justify-between items-center"
+              >
+                <p>{mate.email}</p>
+
+                {/* DELETE MEMBER */}
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={async () => {
+                    await fetch("/api/trip", {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        tripPlanId: tripPlan.id,
+                        memberId: mate.id,
+                      }),
+                    });
+
+                    window.location.reload(); // simple refresh for demo
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            ))
+          ) : (
+            <p className="text-slate-400 text-sm">
+              No additional tour mates added yet
+            </p>
+          )}
+        </div>
+      </TabsContent>
+
+      {/* ================= BLOGS ================= */}
+      <TabsContent value="blogs">
+        <div className="space-y-6">
+          <Button
+            onClick={async () => {
+  try {
+    const query = prompt("What should the blog focus on?");
+    if (!query) return;
+
+    const res = await fetch("/api/blog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tripPlanId: tripPlan.id,
+        query,
+      }),
+    });
+
+    const data = await res.json();
+
+    console.log("BLOG RESPONSE:", data); // 🔥 debug
+
+    if (data?.savedBlog) {
+      setBlogs((prev: any[]) => [data.savedBlog, ...prev]);
+    }
+
+    fetchBlogs();
+  } catch (err) {
+    console.error(err);
+  }
+}}
+            className="bg-purple-600"
+          >
+            Generate Blog
+          </Button>
+
+          {blogs.length === 0 ? (
+            <p className="text-slate-400">No blogs generated yet.</p>
+          ) : (
+      blogs
+  ?.filter((blog) => blog && blog.id)
+  .map((blog: any) => {
+    let title = blog?.title;
+    let content = blog?.content;
+
+    // 🔥 HANDLE JSON STRING CASE
+    try {
+      const parsed = JSON.parse(blog.content);
+      if (parsed?.content) {
+        title = parsed.title;
+        content = parsed.content;
+      }
+    } catch {
+      // normal string → do nothing
+    }
+
+    return (
+      <div
+        key={blog.id}
+        className="bg-slate-800 p-6 rounded-xl flex justify-between"
+      >
+        <div>
+          <h3 className="text-lg font-semibold">
+            {title || "Untitled Blog"}
+          </h3>
+
+          <p className="text-slate-400 mt-2 whitespace-pre-line">
+            {content || "No content available."}
+          </p>
+        </div>
+
+        {/* DELETE BLOG */}
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={async () => {
+            await fetch("/api/blog", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ blogId: blog.id }),
+            });
+
+            setBlogs((prev) =>
+              prev.filter((b) => b.id !== blog.id)
+            );
+          }}
+        >
+          Delete
+        </Button>
+      </div>
+    );
+  })
+          )}
+        </div>
+      </TabsContent>
+
+<TabsContent value="media">
+  <div className="bg-slate-800/60 rounded-3xl p-6 border border-slate-700 space-y-6">
+
+    <div className="flex justify-between items-center">
+      <h2 className="text-xl font-semibold">Trip Media</h2>
+
+      <Button
+        className="bg-indigo-600"
+        onClick={() =>
+          window.location.href = `/trip/media?tripPlanId=${tripPlan.id}`
+        }
+      >
+        Open Media
+      </Button>
+    </div>
+
+  </div>
+</TabsContent>
+      
+<TabsContent value="vlogs">
+  <div className="bg-slate-800/60 rounded-3xl p-6 border border-slate-700 space-y-6">
+
+    <div className="flex justify-between items-center">
+      <h2 className="text-xl font-semibold">Vlogs</h2>
+
+      <Button
+        className="bg-purple-600"
+        onClick={() =>
+          window.location.href = `/trip/vlogs?tripPlanId=${tripPlan.id}`
+        }
+      >
+        Open Vlogs
+      </Button>
+    </div>
+
+  </div>
+</TabsContent>
+<TabsContent value="assistant">
+  <AiBot tripData={current} />
+</TabsContent>
+    </Tabs>
+  </div>
+);
+}

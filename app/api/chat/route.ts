@@ -1,38 +1,48 @@
-import { OpenAIStream } from '@/types/chatStream'; 
-import { ChatBody } from '@/types/types';
+import { NextResponse } from "next/server";
+import Groq from "groq-sdk";
 
-export const runtime = 'edge';
+export const runtime = "edge";
 
-export async function GET(req: Request): Promise<Response> {
+export async function POST(req: Request) {
   try {
-    const { inputMessage } = (await req.json()) as ChatBody;
-    const model = "gpt-4o-mini";
+    const { inputMessage } = await req.json();
 
-    const apiKeyFinal = process.env.OPENAI_API_KEY;
-    
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
 
-    const stream = await OpenAIStream(inputMessage, model, apiKeyFinal);
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant", // 🔥 best free model
+      messages: [
+        {
+          role: "system",
+          content: `
+You are a smart AI travel assistant.
 
-    return new Response(stream);
-  } catch (error) {
-    console.error(error);
-    return new Response('Error', { status: 500 });
-  }
-}
-export async function POST(req: Request): Promise<Response> {
-  try {
-    const { inputMessage } = (await req.json()) as ChatBody;
-    const model = "gpt-4o-mini";
+You ONLY answer based on the provided trip data.
 
-    console.log(inputMessage);
+Give helpful, short, practical answers:
+- weather advice
+- travel tips
+- route insights
+- suggestions
+          `,
+        },
+        {
+          role: "user",
+          content: inputMessage,
+        },
+      ],
+    });
 
-    const apiKeyFinal= process.env.OPENAI_API_KEY;
-    
-    const stream = await OpenAIStream(inputMessage, model, apiKeyFinal);
+    const reply = completion.choices[0]?.message?.content;
 
-    return new Response(stream);
-  } catch (error) {
-    console.error(error);
-    return new Response('Error', { status: 500 });
+    return NextResponse.json({ output: reply });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { error: "AI failed" },
+      { status: 500 }
+    );
   }
 }

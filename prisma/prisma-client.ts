@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma, Photo } from '@prisma/client'; 
+import { PrismaClient, Prisma, } from '@prisma/client'; 
 // import { PrismaVectorStore } from "@langchain/community/vectorstores/prisma";
 // import { GoogleGenerativeAIEmbeddings  } from "@langchain/google-genai";
 

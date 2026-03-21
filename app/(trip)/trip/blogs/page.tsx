@@ -1,11 +1,9 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-  UploadCloud,
   Search,
   Loader2,
   Heart,
@@ -21,37 +19,67 @@ import remarkGfm from "remark-gfm";
 import BlogGenerator from "./generate";
 import { ModalFullScreen } from "@/components/ui/modal-full";
 
-const breadcrumbItems = [{ title: "Blog", link: "/trip/blog" }];
+/* =========================
+   TYPES
+========================= */
+
+interface Blog {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  author: {
+    name: string;
+  };
+}
+
+/* =========================
+   COMPONENT
+========================= */
 
 export default function Page() {
-  const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
-  const [tripPlanId, setTripPlanId] = useState(undefined);
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
-  const [blogs, setBlogs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedBlog, setSelectedBlog] = useState(null);
   const { toast } = useToast();
 
-  const searchParams = useSearchParams(); // Use useSearchParams hook
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [tripPlanId, setTripPlanId] = useState<string | undefined>(
+    undefined
+  );
+  const [blogs, setBlogs] = useState<Blog[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
+
+  /* =========================
+     GET TRIP PLAN ID
+  ========================== */
 
   useEffect(() => {
-    const tripPlanIdFromQuery = searchParams.get("tripPlanId"); // Get tripPlanId from query string
-    if (tripPlanIdFromQuery) {
-      setTripPlanId(tripPlanIdFromQuery);
+    const id = searchParams.get("tripPlanId");
+    if (id) {
+      setTripPlanId(id);
     }
   }, [searchParams]);
 
-  // Fetch blogs based on tripPlanId and search query
+  /* =========================
+     FETCH BLOGS
+  ========================== */
+
   const fetchBlogs = async () => {
-    setLoading(true);
+    if (!tripPlanId) return;
+
     try {
-      const response = await axios.get(
-        `/api/blog?tripPlanId=${tripPlanId}&query=${searchQuery}`,
-      );
-      setBlogs(response.data.blogs);
-      console.log(response.data.blogs);
+      setLoading(true);
+
+      const response = await axios.get("/api/blog", {
+        params: {
+          tripPlanId,
+          query: searchQuery,
+        },
+      });
+
+      setBlogs(response.data.blogs || []);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -64,127 +92,124 @@ export default function Page() {
   };
 
   useEffect(() => {
-    if (tripPlanId) fetchBlogs();
+    if (tripPlanId) {
+      fetchBlogs();
+    }
   }, [tripPlanId]);
 
-  return (
-    <div className="min-h-screen p-4 container mx-auto">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <nav className="text-sm breadcrumbs">
-            <ul className="flex space-x-2">
-              {breadcrumbItems.map((item, index) => (
-                <li key={index}>
-                  <a href={item.link} className="text-blue-500 hover:underline">
-                    {item.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-      </div>
+  /* =========================
+     UI
+  ========================== */
 
-      <div className="flex space-x-4 mb-4 justify-between">
-        <div className="flex space-x-4 ">
-          <Input
-            type="text"
-            placeholder="Type a natural language search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <Button variant='secondary' onClick={fetchBlogs}>
-            <Search className="mr-2" /> Search Blogs
-          </Button>
-        </div>
+  return (
+    <div className="min-h-screen p-6 container mx-auto">
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Trip Blogs</h1>
 
         <Button onClick={() => setIsOpen(true)}>
-          <PenLine className="mr-2" /> Generate New Blog
+          <PenLine className="mr-2 h-4 w-4" />
+          Generate New Blog
         </Button>
       </div>
 
+      {/* SEARCH */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <Input
+          type="text"
+          placeholder="Search blogs..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1"
+        />
+        <Button variant="secondary" onClick={fetchBlogs}>
+          <Search className="mr-2 h-4 w-4" />
+          Search
+        </Button>
+      </div>
+
+      {/* CONTENT */}
       {loading ? (
         <div className="flex justify-center items-center py-16">
-          <div className="text-center flex flex-col items-center">
-            <Loader2 className="w-8 h-8 animate-spin" />
-            <p>Loading blogs...</p>
-          </div>
+          <Loader2 className="w-8 h-8 animate-spin" />
         </div>
       ) : blogs.length === 0 ? (
-        <div className="flex justify-center items-center py-16">
-          <p>No blogs found</p>
+        <div className="text-center py-16 text-gray-500">
+          No blogs found
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {blogs.map((blog, index) => (
+          {blogs.map((blog) => (
             <div
-              key={index}
-              className="bg-white border rounded-lg shadow-md overflow-hidden"
+              key={blog.id}
+              className="bg-white border rounded-lg shadow-sm hover:shadow-md transition p-5 flex flex-col justify-between"
             >
-              <div className="p-4">
-                {/* Blog Title */}
-                <h2 className="text-xl font-semibold mb-2">
+              <div>
+                <h2 className="text-lg font-semibold mb-2">
                   {blog.title || "Untitled Blog"}
                 </h2>
-                {/* Small preview of blog content */}
-                <p className="text-gray-700 text-sm mb-4">
-                  {blog.content.substring(0, 100)}...
+
+                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                  {blog.content?.slice(0, 120)}...
                 </p>
-                {/* Author and date */}
-                <div className="flex items-center text-gray-500 text-sm mb-4">
-                  <span>By {blog.author.name}</span>
-                  <span className="mx-2">•</span>
-                  <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
+
+                <div className="text-xs text-gray-500 mb-4">
+                  By {blog.author?.name || "Unknown"} •{" "}
+                  {new Date(blog.createdAt).toLocaleDateString()}
                 </div>
-                {/* Action buttons */}
-                <div className="flex items-center justify-between">
-                  <div className="flex space-x-4">
-                    <button className="flex items-center text-gray-500 hover:text-red-500">
-                      <Heart className="w-5 h-5 mr-1" />
-                      <span>Like</span>
-                    </button>
-                    <button className="flex items-center text-gray-500 hover:text-blue-500">
-                      <MessageSquare className="w-5 h-5 mr-1" />
-                      <span>Comment</span>
-                    </button>
-                  </div>
-                  {/* Preview Button */}
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelectedBlog(blog)}
-                  >
-                    Preview
-                  </Button>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div className="flex space-x-4 text-gray-500">
+                  <button className="flex items-center hover:text-red-500">
+                    <Heart className="w-4 h-4 mr-1" />
+                    Like
+                  </button>
+                  <button className="flex items-center hover:text-blue-500">
+                    <MessageSquare className="w-4 h-4 mr-1" />
+                    Comment
+                  </button>
                 </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSelectedBlog(blog)}
+                >
+                  Preview
+                </Button>
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* PREVIEW MODAL */}
       {selectedBlog && (
         <ModalFullScreen
           isOpen={true}
           onClose={() => setSelectedBlog(null)}
-          title="Blog Preview"
+          title={selectedBlog.title}
           description=""
         >
-          <div className="space-y-4">
-            <ReactMarkdown>{selectedBlog?.content}</ReactMarkdown>
+          <div className="prose max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {selectedBlog.content}
+            </ReactMarkdown>
           </div>
         </ModalFullScreen>
       )}
 
-      {/* Dialog for Generate Blog */}
+      {/* GENERATE MODAL */}
       <ModalFullScreen
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         title="Blog Generator"
-        description="AI Blog generator will help to make your Blog"
+        description="AI Blog generator will help you write engaging travel stories"
       >
         <BlogGenerator
-          email={session?.user?.email}
-          name={session?.user?.name}
+          email={session?.user?.email || ""}
+          name={session?.user?.name || ""}
           tripPlanId={tripPlanId}
         />
       </ModalFullScreen>

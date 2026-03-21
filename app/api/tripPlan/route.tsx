@@ -13,6 +13,40 @@ const normalizeCity = (city: string) => {
   return city.trim();
 };
 
+function validateTrip(data: any) {
+  const errors = [];
+
+  try {
+    const destinations = data.checkpoints?.map(
+      (c: any) => c.destination.location
+    ) || [];
+
+    const uniqueCities = Array.from(new Set(destinations));
+    if (uniqueCities.length > 1) {
+      errors.push("Multiple destination cities detected");
+    }
+
+    const hotels = Object.values(data.accommodation || {}).map(
+      (d: any) => d.title
+    );
+    if (new Set(hotels).size > 1) {
+      errors.push("Multiple hotels detected");
+    }
+
+    const allActivities =
+      data.itinerary?.flatMap((d: any) => d.activities) || [];
+
+    if (new Set(allActivities).size !== allActivities.length) {
+      errors.push("Duplicate activities found");
+    }
+
+  } catch (err) {
+    errors.push("Invalid structure");
+  }
+
+  return errors;
+}
+
 export async function GET(request: Request) {
   if (!pythonServer) {
     console.error("PYTHON_SERVER_URL not defined");
@@ -53,30 +87,45 @@ export async function GET(request: Request) {
   );
 
   try {
-    const response = await axios.post(
-      `${pythonServer}/trip_plan/invoke`,
-      {
-        input: {
-          origin,
-          destination,
-          days,
-          people,
-          budget,
-          preferences,
-          tripType,
-          journeyDate,
-          travelClass,
-        },
-      },
-      { timeout: 30_000 }
-    );
+    let result;
+let retries = 2;
 
-    return NextResponse.json(response.data);
+while (retries--) {
+  const response = await axios.post(
+    `${pythonServer}/trip_plan/invoke`,
+    {
+      input: {
+        origin,
+        destination,
+        days,
+        people,
+        budget,
+        preferences,
+        tripType,
+        journeyDate,
+        travelClass,
+      },
+    },
+    { timeout: 30000 }
+  );
+
+  result = response.data;
+
+  const errors = validateTrip(result);
+
+  if (errors.length === 0) break;
+
+  console.log("Retrying due to:", errors);
+}
+
+return NextResponse.json(result);
+
   } catch (error: any) {
     console.error(
       "Trip plan API failed:",
       error?.response?.data || error.message
     );
+    
     return NextResponse.json(
       { error: "Failed to fetch trip plan" },
       { status: 500 }

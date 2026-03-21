@@ -57,7 +57,7 @@ model User {
   photos        PhotoData[]
   sessions      Session[]
   tripPlans     TripPlan[]
-  volgs         Vlog[]
+  vlogs         Vlog[]
   membersOfTrip TripPlan[]  @relation("TripPlanMembers")
 
   @@index([email])
@@ -107,6 +107,7 @@ model Vlog {
   id         String   @id @default(cuid())
   title      String
   content    String
+  thumbnail  String   @default("")
   authorId   String
   status     STAUS    @default(PRIVATE)
   tripPlanId String
@@ -119,6 +120,7 @@ model Vlog {
 model PhotoData {
   id           String   @id @default(cuid())
   url          String
+  name         String
   tripPlanId   String
   authorId     String
   caption      String?
