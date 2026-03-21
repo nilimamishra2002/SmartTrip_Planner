@@ -11,7 +11,12 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import LocationCard from "@/components/map/LocationCard";
+import dynamic from "next/dynamic";
+
+const LocationCard = dynamic(
+  () => import("@/components/map/LocationCard"),
+  { ssr: false }
+);
 
 const TripPlannerPage = () => {
   const [tripPlan, setTripPlan] = useState<any>(null);
@@ -19,6 +24,8 @@ const TripPlannerPage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [weatherData, setWeatherData] = useState<any>(null);
   const sliderRef = useRef<HTMLDivElement | null>(null);
+
+  
 
   // ===============================
   // LOAD TRIP PLAN
