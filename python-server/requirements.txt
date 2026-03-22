@@ -8,3 +8,4 @@ langserve
 fastapi
 uvicorn
 sse_starlette
+langchain-groq
