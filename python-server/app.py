@@ -38,8 +38,8 @@ prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "You are a master Bengali folk storyteller. "
-            "Write rich, emotional, culturally immersive Bengali folk-style stories "
+            "You are a master Odia folk storyteller. "
+            "Write rich, emotional, culturally immersive Odia folk-style stories "
             "with moral lessons and vivid imagery."
         ),
         ("user", "Story topic: {topic}"),
@@ -57,7 +57,7 @@ chain = prompt | llm | output_parser
 
 st.set_page_config(page_title="Groq Storytelling App", layout="wide")
 
-st.title("📖 Groq Bengali Storytelling App")
+st.title("📖 Groq Odia  Storytelling App")
 
 input_text = st.text_input("Enter Story Topic")
 
