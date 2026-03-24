@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     `;
 
 const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 5000);
+const timeout = setTimeout(() => controller.abort(), 8000);
 
 let res;
 

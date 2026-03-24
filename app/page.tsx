@@ -15,6 +15,12 @@ import axios from "axios";
 import TravelPlannerModal from "./TravelPlannerModal";
 import { useSession } from "next-auth/react";
 import type { Dayjs } from "dayjs";
+import { signOut } from "next-auth/react";
+const handleLogout = async () => {
+  await signOut({
+    callbackUrl: "/signin",
+  });
+};
 
 const BookingCard = () => {
   // Dummy data for initial form state
@@ -285,39 +291,59 @@ const Header = () => {
     router.push("/signin");
   };
 
-  return (
-    <div className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-12">
-          <div className="text-2xl font-bold text-purple-800">SmartTrip</div>
+return (
+  <div className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-gray-200 z-50 shadow-sm">
+    <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      
+      {/* LOGO */}
+      <div className="flex items-center gap-12">
+        <div className="text-2xl font-bold bg-gradient-to-r from-purple-700 to-pink-500 bg-clip-text text-transparent">
+          SmartTrip
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-md cursor-pointer hover:bg-gray-200 transition-all">
-            <span className="text-sm font-medium text-gray-800">INR</span>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
-          </div>
-          {session?.user ? (
+      </div>
+
+      {/* RIGHT SIDE */}
+      <div className="flex items-center gap-4">
+
+        {/* CURRENCY */}
+        <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-200 transition-all">
+          <span className="text-sm font-medium text-gray-800">INR</span>
+          <ChevronDown className="w-4 h-4 text-gray-500" />
+        </div>
+
+        {session?.user ? (
+          <div className="flex items-center gap-3">
+
+            {/* HOME BUTTON (GOOD ALREADY, SLIGHT ENHANCE) */}
             <button
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-700 transition-all flex items-center gap-2 shadow-lg"
-              onClick={() => {
-                router.push("/trip");
-              }}
+              onClick={() => router.push("/trip")}
+              className="bg-purple-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-purple-700 transition-all shadow-md hover:shadow-lg"
             >
               Go to Home
             </button>
-          ) : (
+
+            {/* LOGOUT BUTTON FIXED */}
             <button
-              onClick={handleSignInClick}
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-700 transition-all flex items-center gap-2 shadow-lg"
+              onClick={handleLogout}
+              className="bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-all shadow-md hover:shadow-lg"
             >
-              <User className="w-5 h-5" />
-              <span>Sign In</span>
+              Logout
             </button>
-          )}
-        </div>
+
+          </div>
+        ) : (
+          /* SIGN IN BUTTON FIXED */
+          <button
+            onClick={handleSignInClick}
+            className="bg-purple-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-purple-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+          >
+            Sign In
+          </button>
+        )}
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default function Homepage() {

@@ -16,6 +16,23 @@ export async function POST(req: Request) {
   if (!file || !tripPlanId)
     return NextResponse.json({ error: "Missing data" }, { status: 400 });
 
+  // 🔒 ACCESS CONTROL
+  const trip = await prisma.tripPlan.findFirst({
+    where: {
+      id: tripPlanId,
+      members: {
+        some: { email: session.user.email },
+      },
+    },
+  });
+
+  if (!trip) {
+    return NextResponse.json(
+      { error: "Access Denied" },
+      { status: 403 }
+    );
+  }
+
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
   });

@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,8 +35,12 @@ type TripPlan = any;
 
 export default function TripPreview() {
   const [tripData, setTripData] = useState<TripPlan | null>(null);
-  const { data: session } = useSession();
   const router = useRouter();
+  const { data: session, status } = useSession();
+if (status === "loading") return <div>Loading...</div>;
+if (!session) {
+  router.push("/signin");
+}
 
   /* ========== LOAD FROM LOCAL STORAGE ========== */
 

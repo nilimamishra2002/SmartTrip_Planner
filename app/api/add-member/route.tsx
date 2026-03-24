@@ -1,42 +1,47 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 import prisma from "@/prisma/prisma-client";
-export async function GET() {
-  return NextResponse.json({ message: 'Hello, World!' });
-}
 
 export async function POST(request: Request) {
   const body = await request.json();
   const { user_email, tripPlanId } = body;
 
-  if (!user_email) {
-    return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+  if (!user_email || !tripPlanId) {
+    return NextResponse.json(
+      { error: "Email and Trip ID required" },
+      { status: 400 }
+    );
   }
 
-  if (tripPlanId) {
-    // If email is not null and tripPlan is not null:
-    // Insert the tripPlan to the database with email and return the tripPlanId
-    try {
-      const newTripPlan = await prisma.tripPlan.update({
-        data: {
-          members: {
-            connect: {
-              email: user_email
-            }
-          },
+  try {
+    // ✅ Ensure user exists
+    const user = await prisma.user.upsert({
+      where: { email: user_email },
+      update: {},
+      create: {
+        email: user_email,
+        name: user_email.split("@")[0],
+      },
+    });
+
+    // ✅ Add user to trip
+    const updatedTrip = await prisma.tripPlan.update({
+      where: { id: tripPlanId },
+      data: {
+        members: {
+          connect: { id: user.id },
         },
-        where: {
-          id : tripPlanId
-        }
-      });
-      return NextResponse.json({
-        message: 'User added to trip plan',
-        tripPlanId: newTripPlan.id,
-      });
-    } catch (error) {
-      console.error('Error saving trip plan:', error);
-      return NextResponse.json({ error: 'Error saving trip plan' }, { status: 500 });
-    }
+      },
+    });
+
+    return NextResponse.json({
+      message: "User added to trip",
+      tripPlanId: updatedTrip.id,
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Failed to add member" },
+      { status: 500 }
+    );
   }
 }
-
- 

@@ -1,7 +1,31 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/prisma/prisma-client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
+
+/* ================= HELPER ================= */
+
+async function checkTripAccess(tripId: string, email: string) {
+  return await prisma.tripPlan.findFirst({
+    where: {
+      id: tripId,
+      members: {
+        some: { email },
+      },
+    },
+  });
+}
+
+async function checkTripOwner(tripId: string, email: string) {
+  return await prisma.tripPlan.findFirst({
+    where: {
+      id: tripId,
+      author: {
+        email,
+      },
+    },
+  });
+}
 
 /* ================= GET USER TRIPS ================= */
 
@@ -14,10 +38,11 @@ export async function GET() {
 
   const email = session.user.email;
 
+  // ✅ Get ALL trips where user is a member
   const trips = await prisma.tripPlan.findMany({
     where: {
-      author: {
-        email,
+      members: {
+        some: { email },
       },
     },
     include: {
@@ -74,7 +99,7 @@ export async function POST(request: Request) {
       data: {
         authorId: user.id,
         members: {
-          connect: { id: user.id },
+          connect: { id: user.id }, // creator is member
         },
         data: body.data,
       },
@@ -113,6 +138,19 @@ export async function PUT(request: Request) {
   }
 
   try {
+    // 🔒 Check access (member)
+    const trip = await checkTripAccess(
+      tripPlanId,
+      session.user.email
+    );
+
+    if (!trip) {
+      return NextResponse.json(
+        { error: "Access Denied" },
+        { status: 403 }
+      );
+    }
+
     const updatedTrip = await prisma.tripPlan.update({
       where: { id: tripPlanId },
       data: {
@@ -150,6 +188,19 @@ export async function PATCH(request: Request) {
   }
 
   try {
+    // 🔒 Only OWNER can add members
+    const isOwner = await checkTripOwner(
+      tripPlanId,
+      session.user.email
+    );
+
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: "Only owner can add members" },
+        { status: 403 }
+      );
+    }
+
     // ✅ Ensure user exists
     const user = await prisma.user.upsert({
       where: { email },
@@ -182,16 +233,41 @@ export async function PATCH(request: Request) {
   }
 }
 
-/* ================= REMOVE MEMBER AND TRIP ================= */
+/* ================= REMOVE MEMBER / DELETE TRIP ================= */
 
 export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-
     const { tripPlanId, memberId } = body;
 
+    if (!tripPlanId) {
+      return NextResponse.json(
+        { error: "Trip ID required" },
+        { status: 400 }
+      );
+    }
+
+    // 🔒 Only OWNER can modify members or delete trip
+    const isOwner = await checkTripOwner(
+      tripPlanId,
+      session.user.email
+    );
+
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: "Only owner can perform this action" },
+        { status: 403 }
+      );
+    }
+
     // 🧠 CASE 1: REMOVE MEMBER
-    if (tripPlanId && memberId) {
+    if (memberId) {
       const updatedTrip = await prisma.tripPlan.update({
         where: { id: tripPlanId },
         data: {
@@ -207,20 +283,13 @@ export async function DELETE(request: Request) {
       return NextResponse.json(updatedTrip);
     }
 
-    // 🧠 CASE 2: DELETE FULL TRIP
-    if (tripPlanId && !memberId) {
-      await prisma.tripPlan.delete({
-        where: { id: tripPlanId },
-      });
+    // 🧠 CASE 2: DELETE TRIP
+    await prisma.tripPlan.delete({
+      where: { id: tripPlanId },
+    });
 
-      return NextResponse.json({ message: "Trip deleted" });
-    }
+    return NextResponse.json({ message: "Trip deleted" });
 
-    // ❌ INVALID REQUEST
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 }
-    );
   } catch (err) {
     console.error("DELETE error:", err);
     return NextResponse.json(

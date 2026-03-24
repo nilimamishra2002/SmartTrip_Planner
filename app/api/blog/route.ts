@@ -6,12 +6,34 @@ import { authOptions } from "@/lib/auth-options";
 
 const pythonServer = process.env.PYTHON_SERVER_URL;
 
-// =====================
-// GET BLOGS
-// =====================
+/* ===========================
+   HELPER: CHECK TRIP ACCESS
+=========================== */
+async function checkTripAccess(tripPlanId: string, email: string) {
+  return await prisma.tripPlan.findFirst({
+    where: {
+      id: tripPlanId,
+      members: {
+        some: { email },
+      },
+    },
+  });
+}
 
+/* ===========================
+   GET BLOGS (Shared)
+=========================== */
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const searchParams = new URL(request.url).searchParams;
     const tripPlanId = searchParams.get("tripPlanId");
     const query = searchParams.get("query") || "";
@@ -20,6 +42,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: "tripPlanId is required" },
         { status: 400 }
+      );
+    }
+
+    // 🔒 ACCESS CONTROL
+    const trip = await checkTripAccess(tripPlanId, session.user.email);
+
+    if (!trip) {
+      return NextResponse.json(
+        { error: "Access Denied" },
+        { status: 403 }
       );
     }
 
@@ -32,7 +64,14 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      include: { author: true },
+      include: {
+        author: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json({ blogs, count: blogs.length });
@@ -45,12 +84,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// =====================
-// POST BLOG
-// =====================
-
+/* ===========================
+   POST BLOG (Manual + AI)
+=========================== */
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { tripPlanId, query, content, title } = body;
 
@@ -61,22 +108,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🔐 Get logged-in user securely
-    const session = await getServerSession(authOptions);
+    // 🔒 ACCESS CONTROL
+    const trip = await checkTripAccess(tripPlanId, session.user.email);
 
-    if (!session?.user?.email) {
+    if (!trip) {
       return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
+        { error: "Access Denied" },
+        { status: 403 }
       );
     }
 
     const userEmail = session.user.email;
 
-    // ============================================
-    // 1️⃣ If manual content → Save directly
-    // ============================================
-
+    /* ========= 1. MANUAL BLOG ========= */
     if (content && title) {
       const blog = await prisma.blog.create({
         data: {
@@ -86,16 +130,14 @@ export async function POST(request: NextRequest) {
           tripPlan: { connect: { id: tripPlanId } },
         },
         include: {
-          author: { select: { name: true } },
+          author: { select: { name: true, email: true } },
         },
       });
 
-      return NextResponse.json({blog});
+      return NextResponse.json({ blog });
     }
 
-    // ============================================
-    // 2️⃣ Generate Blog via Python AI
-    // ============================================
+    /* ========= 2. AI BLOG ========= */
 
     if (!pythonServer) {
       return NextResponse.json(
@@ -104,12 +146,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tripPlan = await prisma.tripPlan.findUnique({
+    const fullTrip = await prisma.tripPlan.findUnique({
       where: { id: tripPlanId },
       include: { members: true },
     });
 
-    if (!tripPlan) {
+    if (!fullTrip) {
       return NextResponse.json(
         { error: "Trip not found" },
         { status: 404 }
@@ -122,11 +164,11 @@ export async function POST(request: NextRequest) {
         input: {
           name: session.user.name || "Traveler",
           query,
-          tripData: tripPlan.data,
-          members: tripPlan.members,
+          tripData: fullTrip.data,
+          members: fullTrip.members,
         },
       },
-      { timeout: 30_000 }
+      { timeout: 30000 }
     );
 
     const aiBlog = response.data;
@@ -138,7 +180,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Auto-save generated blog
     const savedBlog = await prisma.blog.create({
       data: {
         title: aiBlog.title,
@@ -147,34 +188,84 @@ export async function POST(request: NextRequest) {
         tripPlan: { connect: { id: tripPlanId } },
       },
       include: {
-        author: { select: { name: true } },
+        author: { select: { name: true, email: true } },
       },
     });
 
-    return NextResponse.json({savedBlog});
+    return NextResponse.json({ savedBlog });
   } catch (error: any) {
     console.error("POST /api/blog error:", error?.message);
     return NextResponse.json(
-      { error: "Blog generation failed" },
+      { error: "Blog creation failed" },
       { status: 500 }
     );
   }
 }
 
+/* ===========================
+   DELETE BLOG
+=========================== */
 export async function DELETE(request: NextRequest) {
-  const body = await request.json();
-  const { blogId } = body;
+  try {
+    const session = await getServerSession(authOptions);
 
-  if (!blogId) {
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { blogId } = body;
+
+    if (!blogId) {
+      return NextResponse.json(
+        { error: "blogId required" },
+        { status: 400 }
+      );
+    }
+
+    const blog = await prisma.blog.findUnique({
+      where: { id: blogId },
+      include: {
+        tripPlan: {
+          include: {
+            members: true,
+          },
+        },
+      },
+    });
+
+    if (!blog) {
+      return NextResponse.json(
+        { error: "Blog not found" },
+        { status: 404 }
+      );
+    }
+
+    // 🔒 MEMBER CHECK
+    const isMember = blog.tripPlan.members.some(
+      (m) => m.email === session.user.email
+    );
+
+    if (!isMember) {
+      return NextResponse.json(
+        { error: "Access Denied" },
+        { status: 403 }
+      );
+    }
+
+    await prisma.blog.delete({
+      where: { id: blogId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/blog error:", error);
     return NextResponse.json(
-      { error: "blogId required" },
-      { status: 400 }
+      { error: "Failed to delete blog" },
+      { status: 500 }
     );
   }
-
-  await prisma.blog.delete({
-    where: { id: blogId },
-  });
-
-  return NextResponse.json({ success: true });
 }

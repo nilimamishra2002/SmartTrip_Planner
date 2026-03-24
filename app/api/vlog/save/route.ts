@@ -23,6 +23,23 @@ export async function POST(req: Request) {
     );
   }
 
+  // 🔒 ACCESS CONTROL
+  const trip = await prisma.tripPlan.findFirst({
+    where: {
+      id: tripPlanId,
+      members: {
+        some: { email: session.user.email },
+      },
+    },
+  });
+
+  if (!trip) {
+    return NextResponse.json(
+      { error: "Access Denied" },
+      { status: 403 }
+    );
+  }
+
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
   });
@@ -38,7 +55,7 @@ export async function POST(req: Request) {
     data: {
       title,
       content,
-      thumbnail: thumbnail || "", // ✅ FIX
+      thumbnail: thumbnail || "",
       tripPlanId,
       authorId: user.id,
       status: "PRIVATE",

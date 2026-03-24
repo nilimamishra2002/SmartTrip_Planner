@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   MapPin,
   Calendar,
@@ -32,7 +33,31 @@ interface TripPlanProps {
 }
 
 export default function TripPlan({ tripPlan }: TripPlanProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+if (status === "loading") {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="flex flex-col items-center gap-4">
+
+        {/* Spinner */}
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+
+        {/* Text */}
+        <p className="text-white text-sm tracking-wide">
+          Loading your trip...
+        </p>
+
+      </div>
+    </div>
+  );
+}
+
+if (!session) {
+  router.push("/signin");
+}
+  const isOwner = tripPlan?.authorId === session?.user?.id;
 
   const initialData = tripPlan?.data ?? {};
 
@@ -182,7 +207,7 @@ useEffect(() => {
   }
 }, [tripPlan?.id]);
 
-  if (!current) return <div>Loading...</div>;
+  // if (!current) return <div>Loading...</div>;
 
   const handleDelete = async () => {
   const confirmDelete = confirm("Are you sure you want to delete this trip?");
@@ -347,20 +372,17 @@ return (
           </div>
         ) : (
           <div className="flex gap-3">
-  <Button
-    onClick={() => setIsEditMode(true)}
-    className="bg-indigo-600"
-  >
-    <Edit className="w-4 h-4 mr-2" />
+  {isOwner && (
+  <Button onClick={() => setIsEditMode(true)}>
     Edit Trip
   </Button>
+)}
 
-  <Button
-    variant="destructive"
-    onClick={handleDelete}
-  >
+{isOwner && (
+  <Button variant="destructive" onClick={handleDelete}>
     Delete
   </Button>
+)}
 </div>
         )}
       </div>
@@ -738,6 +760,7 @@ return (
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Tour Mates</h2>
 
+            {isOwner && (
             <Button
               size="sm"
               onClick={() => {
@@ -749,50 +772,76 @@ return (
               <Plus className="w-4 h-4 mr-1" />
               Add
             </Button>
+)}
           </div>
 
-          {/* Logged-in user */}
+          {/* Logged-in user
           {session?.user && (
             <div className="bg-indigo-900 border border-indigo-500 rounded-lg p-4 mb-3">
               <p>{session.user.email} (You)</p>
             </div>
-          )}
+          )} */}
 
           {/* Members from Prisma relation */}
-          {tripPlan.members?.length > 0 ? (
-            tripPlan.members.map((mate: any) => (
-              <div
-                key={mate.id}
-                className="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-2 flex justify-between items-center"
-              >
-                <p>{mate.email}</p>
+{tripPlan.members?.length > 0 ? (
+  tripPlan.members.map((mate: any) => {
+    const isYou = mate.email === session?.user?.email;
+    const isCreator = mate.id === tripPlan.authorId;
 
-                {/* DELETE MEMBER */}
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={async () => {
-                    await fetch("/api/trip", {
-                      method: "DELETE",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        tripPlanId: tripPlan.id,
-                        memberId: mate.id,
-                      }),
-                    });
+    return (
+      <div
+        key={mate.id}
+        className="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-2 flex justify-between items-center"
+      >
+        <div className="flex flex-col">
+          <p className="text-white font-medium">
+            {mate.email}
+          </p>
 
-                    window.location.reload(); // simple refresh for demo
-                  }}
-                >
-                  Delete
-                </Button>
-              </div>
-            ))
-          ) : (
-            <p className="text-slate-400 text-sm">
-              No additional tour mates added yet
-            </p>
-          )}
+          <div className="flex gap-2 mt-1">
+            {isYou && (
+              <span className="text-xs bg-indigo-600 px-2 py-0.5 rounded">
+                You
+              </span>
+            )}
+
+            {isCreator && (
+              <span className="text-xs bg-purple-600 px-2 py-0.5 rounded">
+                Owner
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* DELETE BUTTON (ONLY FOR OTHERS, NOT OWNER) */}
+        {isOwner && !isCreator && !isYou && (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={async () => {
+              await fetch("/api/trip", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  tripPlanId: tripPlan.id,
+                  memberId: mate.id,
+                }),
+              });
+
+              window.location.reload();
+            }}
+          >
+            Delete
+          </Button>
+        )}
+      </div>
+    );
+  })
+) : (
+  <p className="text-slate-400 text-sm">
+    No additional tour mates added yet
+  </p>
+)}
         </div>
       </TabsContent>
 

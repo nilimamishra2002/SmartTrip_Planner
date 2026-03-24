@@ -1,11 +1,28 @@
 import prisma from "@/prisma/prisma-client";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 
 export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   const { tripPlanId, images = [], query } = await req.json();
 
-  const trip = await prisma.tripPlan.findUnique({
-    where: { id: tripPlanId },
+  // 🔒 ACCESS CONTROL
+  const trip = await prisma.tripPlan.findFirst({
+    where: {
+      id: tripPlanId,
+      members: {
+        some: { email: session.user.email },
+      },
+    },
     include: {
       photos: true,
       members: true,
@@ -16,15 +33,14 @@ export async function POST(req: Request) {
 
   if (!trip) {
     return NextResponse.json(
-      { error: "Trip not found" },
-      { status: 404 }
+      { error: "Access Denied or Trip not found" },
+      { status: 403 }
     );
   }
 
-  /* ================= NEW FLOW (USER SELECTED IMAGES) ================= */
+  /* ================= NEW FLOW ================= */
   if (images && images.length > 0) {
     try {
-      // 🔥 Call Python with selected images
       const response = await fetch(
         process.env.PYTHON_SERVER_URL + "/vlog/invoke",
         {
@@ -36,19 +52,18 @@ export async function POST(req: Request) {
             input: {
               tripData: trip.data,
               members: trip.members,
-              images, // ✅ USER SELECTED IMAGES
+              images,
             },
           }),
         }
       );
 
       const generated = await response.json();
-
       return NextResponse.json(generated);
+
     } catch (err) {
       console.error("Python error:", err);
 
-      // 🔥 FALLBACK (if Python fails)
       const fallbackScenes = images.map((img: string, i: number) => ({
         image: img,
         voiceover: `Scene ${i + 1}: A beautiful moment from the journey.`,
@@ -61,7 +76,7 @@ export async function POST(req: Request) {
     }
   }
 
-  /* ================= OLD FLOW (QUERY BASED) ================= */
+  /* ================= OLD FLOW ================= */
   if (query) {
     const response = await fetch(
       process.env.PYTHON_SERVER_URL + "/vlog/invoke",
@@ -82,11 +97,9 @@ export async function POST(req: Request) {
     );
 
     const generated = await response.json();
-
     return NextResponse.json(generated);
   }
 
-  /* ================= SAFETY ================= */
   return NextResponse.json(
     { error: "Invalid request" },
     { status: 400 }

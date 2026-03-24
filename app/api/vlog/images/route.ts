@@ -1,4 +1,16 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
+
 export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   const { query } = await req.json();
 
   // 🔥 Replace later with Unsplash / Pexels API

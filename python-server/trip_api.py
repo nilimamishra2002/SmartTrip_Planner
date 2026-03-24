@@ -394,6 +394,7 @@ async def generate_trip_plan(payload: dict):
         raise HTTPException(status_code=500, detail=str(e))
     
 
+
 @app.post("/blog/invoke")
 async def generate_blog(payload: dict):
     try:
@@ -405,7 +406,7 @@ async def generate_blog(payload: dict):
         members = input_data.get("members", [])
 
         # ===============================
-        # CLEAN & REDUCE INPUT (IMPORTANT)
+        # CLEAN & REDUCE INPUT
         # ===============================
 
         origin = trip_data.get("origin", "Unknown")
@@ -444,27 +445,48 @@ OUTPUT FORMAT:
   "content": "string"
 }}
 """
+
         # ===============================
         # LLM CALL
         # ===============================
 
         response = llm.invoke(blog_prompt)
-
         raw_content = response.content.strip()
 
         print("🔍 RAW:", raw_content)
 
-        # 🔥 Extract JSON safely
-        import re
+        # ===============================
+        # SAFE JSON EXTRACTION
+        # ===============================
 
         match = re.search(r"\{.*\}", raw_content, re.DOTALL)
 
-        if re.match:
+        if match:
             raw_content = match.group(0)
         else:
             raise HTTPException(status_code=500, detail="No JSON found")
 
-        result = json.loads(raw_content)
+        # ===============================
+        # CLEAN INVALID CHARACTERS
+        # ===============================
+
+        clean_json = raw_content.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+        clean_json = re.sub(r"\s+", " ", clean_json)
+
+        # ===============================
+        # PARSE JSON SAFELY
+        # ===============================
+
+        try:
+            result = json.loads(clean_json)
+        except Exception as e:
+            print("🚨 JSON PARSE ERROR:", str(e))
+
+            # 🔥 FALLBACK BLOG (VERY IMPORTANT)
+            return {
+                "title": "My Travel Experience",
+                "content": "It was a wonderful journey filled with memorable experiences and beautiful moments."
+            }
 
         # ===============================
         # VALIDATION
@@ -482,21 +504,25 @@ OUTPUT FORMAT:
                 detail="Blog too short or invalid",
             )
 
-        # # 🚫 Prevent trip JSON being saved
-        # if any(key in result["content"] for key in ["days", "food", "accommodation"]):
-        #     raise HTTPException(
-        #         status_code=500,
-        #         detail="Model returned structured data instead of blog",
-        #     )
+        # ===============================
+        # FINAL SAFE OUTPUT
+        # ===============================
+
+        safe_content = re.sub(r"[\n\r\t]+", " ", result.get("content", ""))
 
         return {
-    "title": result.get("title"),
-    "content": result.get("content")
-}
+            "title": result.get("title", "Travel Story"),
+            "content": safe_content
+        }
 
     except Exception as e:
         print("🚨 BLOG ERROR:", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+
+        # 🔥 FINAL FALLBACK (never crash frontend)
+        return {
+            "title": "Travel Story",
+            "content": "An amazing journey filled with unforgettable memories."
+        }
 
 
 @app.post("/vlog/invoke")

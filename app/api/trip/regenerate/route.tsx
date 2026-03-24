@@ -28,9 +28,11 @@ export async function POST(request: Request) {
     const existingTrip = await prisma.tripPlan.findFirst({
       where: {
         id: tripPlanId,
-        author: {
-          email: session.user.email,
-        },
+ members: {
+  some: {
+    email: session.user.email,
+  },
+},
       },
     });
 

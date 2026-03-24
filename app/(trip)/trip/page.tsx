@@ -49,8 +49,7 @@ export default function Page() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = useSession();
-
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState<boolean>(true);
   const [tripPlanId, setTripPlanId] = useState<string>(
     searchParams.get("tripPlanId") || ""
@@ -58,6 +57,8 @@ export default function Page() {
   const [tripPlans, setTripPlans] = useState<Trip[]>([]);
   const [selectedTripPlan, setSelectedTripPlan] = useState<Trip | null>(null);
   const [savingInProgress, setSavingInProgress] = useState<boolean>(false);
+
+
 
   /* ================= URL HANDLING ================= */
 
@@ -69,12 +70,24 @@ export default function Page() {
     }
   }, [tripPlanId, pathname, router, searchParams]);
 
+
+
   /* ================= FETCH TRIPS ================= */
 
 const fetchTripPlans = async () => {
   setLoading(true);
   try {
-    const response = await fetch("/api/trip");
+    const response = await fetch("/api/trip", {
+  credentials: "include",
+});
+
+if (response.status === 401) {
+  router.push("/signin");
+}
+
+if (response.status === 403) {
+  alert("Access Denied");
+}
     const result = await response.json();
     const data: Trip[] = result.trips ?? [];
 
@@ -179,6 +192,7 @@ const fetchTripPlans = async () => {
   //   }
   // }, [session?.user?.email, savingInProgress]);
 
+
   useEffect(() => {
   if (session?.user?.email) {
     fetchTripPlans();
@@ -188,6 +202,17 @@ const fetchTripPlans = async () => {
   useEffect(() => {
     updateURL();
   }, [updateURL]);
+
+// 2. Redirect effect
+useEffect(() => {
+  if (status === "unauthenticated") {
+    router.push("/signin");
+  }
+}, [status]);
+
+// 3. UI conditions
+if (status === "loading") return <div>Loading...</div>;
+if (!session) return null;
 
   /* ================= UI ================= */
 
