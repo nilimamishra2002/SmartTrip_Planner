@@ -36,7 +36,7 @@ def get_coordinates(place):
     try:
         url = "https://nominatim.openstreetmap.org/search"
         params = {
-            "q": place,
+            "q": f"{place}, Odisha, India",  # 🔥 bias to India
             "format": "json",
             "limit": 1
         }
@@ -45,15 +45,23 @@ def get_coordinates(place):
             "User-Agent": "smart-trip-planner"
         }
 
-        res = requests.get(url, params=params, headers=headers)
+        res = requests.get(url, params=params, headers=headers, timeout=5)
         data = res.json()
 
         if data:
-            return float(data[0]["lat"]), float(data[0]["lon"])
-    except:
-        pass
+            lat = float(data[0]["lat"])
+            lon = float(data[0]["lon"])
 
-    return 0.0, 0.0
+            # 🚨 Validate coordinates (avoid Africa bug)
+            if lat == 0 or lon == 0:
+                return None, None
+
+            return lat, lon
+
+    except Exception as e:
+        print("Geocoding error:", e)
+
+    return None, None  # ✅ IMPORTANT CHANGE
 
 # =====================================================
 # LLM Configuration
