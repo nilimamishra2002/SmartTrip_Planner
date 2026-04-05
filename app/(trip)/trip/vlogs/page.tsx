@@ -62,7 +62,7 @@ export default function VlogsPage() {
 
   /* ================= DELETE ================= */
   const deleteVlog = async (id: string) => {
-    await fetch("/api/vlog", {
+    await fetch("/api/vlog/delete", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vlogId: id }),

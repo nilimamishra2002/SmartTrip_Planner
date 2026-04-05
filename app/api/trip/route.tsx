@@ -284,11 +284,25 @@ export async function DELETE(request: Request) {
     }
 
     // 🧠 CASE 2: DELETE TRIP
-    await prisma.tripPlan.delete({
-      where: { id: tripPlanId },
-    });
+    
+    await prisma.blog.deleteMany({
+  where: { tripPlanId },
+});
 
-    return NextResponse.json({ message: "Trip deleted" });
+await prisma.vlog.deleteMany({
+  where: { tripPlanId },
+});
+
+await prisma.photoData.deleteMany({
+  where: { tripPlanId },
+});
+
+// 🔥 NOW DELETE TRIP
+await prisma.tripPlan.delete({
+  where: { id: tripPlanId },
+});
+
+return NextResponse.json({ message: "Trip deleted" });
 
   } catch (err) {
     console.error("DELETE error:", err);
