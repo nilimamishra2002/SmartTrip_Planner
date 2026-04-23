@@ -307,85 +307,34 @@ Travel Class: {travelClass}
 # API ENDPOINT
 # =====================================================
 
-import asyncio
-
 @app.post("/trip_plan/invoke")
 async def generate_trip_plan(payload: dict):
 
     try:
         input_data = payload.get("input", {})
+        
 
+        # Safe Inputs (frontend aligned)
         raw_budget = input_data.get("budget", 5000)
 
         if isinstance(raw_budget, dict):
-            safe_budget = int(raw_budget.get("total", 5000))
+           safe_budget = int(raw_budget.get("total", 5000))
         else:
-            safe_budget = int(raw_budget)
+           safe_budget = int(raw_budget)
 
         safe_input = {
-            "origin": input_data.get("origin") or "Bhubaneswar",
-            "destination": input_data.get("destination") or "Puri",
-            "days": int(input_data.get("days", 3)),
-            "people": int(input_data.get("people", 1)),
-            "budget": safe_budget,
-            "preferences": input_data.get("preferences", "beach"),
-            "journeyDate": input_data.get("journeyDate") or date.today().isoformat(),
-            "tripType": input_data.get("tripType", "oneWay"),
-            "travelClass": input_data.get("travelClass", "economy"),
-        }
-
-        print("🚀 Trip request received")
+    "origin": input_data.get("origin") or "Bhubaneswar",
+    "destination": input_data.get("destination") or "Puri",
+    "days": int(input_data.get("days", 3)),
+    "people": int(input_data.get("people", 1)),
+    "budget": safe_budget,
+    "preferences": input_data.get("preferences", "beach"),
+    "journeyDate": input_data.get("journeyDate") or date.today().isoformat(),
+    "tripType": input_data.get("tripType", "oneWay"),
+    "travelClass": input_data.get("travelClass", "economy"),
+}
 
         chain = trip_plan_prompt | llm | json_parser
-
-        # ✅ TIMEOUT SAFE EXECUTION
-        try:
-            data = await asyncio.wait_for(
-                asyncio.to_thread(chain.invoke, safe_input),
-                timeout=25  # 🔥 MUST
-            )
-        except asyncio.TimeoutError:
-            print("⏱ TIMEOUT HIT")
-
-            return {
-                "origin": safe_input["origin"],
-                "destination": safe_input["destination"],
-                "days": safe_input["days"],
-                "people": safe_input["people"],
-                "budget": {
-                    "total": safe_budget,
-                    "breakdown": {
-                        "transportation": 0,
-                        "food": 0,
-                        "accommodation": 0,
-                        "miscellaneous": 0
-                    }
-                },
-                "itinerary": [],
-                "checkpoints": []
-            }
-
-        except Exception as e:
-            print("❌ LLM ERROR:", str(e))
-
-            return {
-                "origin": safe_input["origin"],
-                "destination": safe_input["destination"],
-                "days": safe_input["days"],
-                "people": safe_input["people"],
-                "budget": {
-                    "total": safe_budget,
-                    "breakdown": {
-                        "transportation": 0,
-                        "food": 0,
-                        "accommodation": 0,
-                        "miscellaneous": 0
-                    }
-                },
-                "itinerary": [],
-                "checkpoints": []
-            }
-
         data = chain.invoke(safe_input)
 
         origin_lat, origin_lng = get_coordinates(safe_input["origin"])
