@@ -169,7 +169,7 @@ PYTHON_SERVER_URL=http://localhost:8000
 Python Server (.env)
 GROQ_API_KEY=
 GOOGLE_SEARCH_API_KEY=
-
+```
 🚧 Known Limitations
 Deployment timeout due to heavy LLM processing
 Cold start delays in Python server
