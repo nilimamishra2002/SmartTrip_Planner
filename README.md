@@ -171,29 +171,37 @@ GROQ_API_KEY=
 GOOGLE_SEARCH_API_KEY=
 ```
 ## 🚧 Known Limitations
-### Deployment timeout due to heavy LLM processing
-### Cold start delays in Python server
-### Free-tier cloud limitations
+
+- Deployment timeouts due to heavy LLM processing  
+- Cold start delays in the Python server  
+- Free-tier cloud infrastructure limitations  
+
+---
 
 ## 🔮 Future Enhancements
-### Async queue-based AI processing
-### Caching generated trips
-### Real-time collaboration
-### Mobile optimization
-### Voice-based trip planning
+
+- Async queue-based AI processing (to handle long-running requests)  
+- Caching generated itineraries for faster responses  
+- Real-time collaboration between trip members  
+- Mobile-first UI improvements  
+- Voice-based trip planning  
+
+---
 
 ## 👨‍💻 Contributors
-### Nilima Mishra
-### Jasaswini Mohanty
-### Pragyan Bharati Moharana
-### Reetika Mallick
+
+- **Nilima Mishra**  
+- **Jasaswini Mohanty**  
+- **Pragyan Bharati Moharana**  
+- **Reetika Mallick**  
+
+---
 
 ## 📌 Final Note
 
-### This project demonstrates:
+This project demonstrates:
 
-### Full-stack development
-### AI system integration
-### Real-world API usage
-### Scalable architecture design
-
+- Full-stack application development  
+- AI system integration using LLMs  
+- Real-world API orchestration  
+- Scalable and modular system design  
