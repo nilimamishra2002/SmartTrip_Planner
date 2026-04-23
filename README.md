@@ -1,147 +1,167 @@
-🚀 ⭐ SmartTrip AI Planner — README
-🌍 SmartTrip AI Planner
+# 🌍 SmartTrip AI Planner
 
-An AI-powered travel planning system that generates personalized itineraries, budgets, routes, and travel content using LLMs and real-world data APIs.
+> AI-powered travel planning system that generates intelligent itineraries, budgets, routes, blogs, and vlogs using LLMs.
 
-📌 Overview
+---
 
-SmartTrip Planner is a full-stack intelligent travel assistant that helps users:
+## ✨ Overview
 
-✈️ Plan trips between any locations
-🗺️ Visualize routes on maps
-📅 Generate day-wise itineraries
-💰 Estimate budget breakdown
-🌤️ Check weather & conditions
-📝 Auto-generate travel blogs & vlogs
+SmartTrip AI Planner is a full-stack intelligent travel assistant designed to simplify trip planning using **AI + real-world data APIs**.
 
-⚡ Designed as a multi-service AI system combining frontend UI, backend APIs, and LLM-powered intelligence.
+It allows users to generate complete travel plans including itinerary, budget, maps, weather insights, and even AI-generated blogs and vlogs.
 
-🎯 Key Features
-🧠 AI Trip Planning
-Generates complete travel itinerary
-Day-wise structured plans
-Context-aware recommendations
-🗺️ Interactive Map Routing
-Displays origin → destination route
-Uses real coordinates (OpenStreetMap)
-💰 Smart Budget Breakdown
-Transportation
-Food
-Accommodation
-Miscellaneous
-🌦️ Weather Integration
-Real-time weather insights for destinations
-📝 AI Blog Generator
-Converts trip into cinematic travel story
-🎥 AI Vlog Generator
-Generates scene-wise voiceovers from images
-👥 Multi-user Trip Collaboration
-Add/remove members
-Shared trip planning
+---
 
-🏗️ System Architecture
-User (Frontend UI - Next.js)
-        ↓
+## 🚀 Key Features
+
+- 🧠 AI-generated day-wise itinerary  
+- 🗺️ Interactive route visualization (Leaflet + OpenStreetMap)  
+- 💰 Budget breakdown (transport, food, stay, misc)  
+- 🌦️ Weather insights  
+- 📝 AI-powered blog generation  
+- 🎥 AI vlog script generation from images  
+- 👥 Multi-user trip collaboration  
+- 🔐 Secure authentication & access control  
+
+---
+
+## 🧩 System Architecture
+User (Next.js Frontend)
+↓
 Next.js API Routes (Backend Layer)
-        ↓
+↓
 FastAPI Python Server (AI Engine)
-        ↓
+↓
 Groq LLM (LLaMA 3)
-        ↓
-External APIs:
-  - OpenStreetMap (Geocoding)
-  - Weather APIs
-  - Google Search API
-        ↓
-PostgreSQL Database (via Prisma)
-⚙️ Tech Stack
-🖥️ Frontend
-Next.js (React)
-Tailwind CSS
-Leaflet (Maps)
-🔙 Backend
-Next.js API Routes
-Prisma ORM
-🧠 AI Engine
-FastAPI
-LangChain
-Groq (LLaMA 3 model)
-🗄️ Database
-PostgreSQL
-🌐 External APIs
-OpenStreetMap (Nominatim)
-Weather API
-Google Search API
+↓
+External APIs (Maps, Weather, Overpass)
+↓
+PostgreSQL Database (Prisma ORM)
 
-📸 Screenshots
+---
 
-(Added screenshots inside Screenshots folder)
+## 🛠️ Tech Stack
 
-🔹 Trip Planning UI
+| Layer        | Technology |
+|-------------|-----------|
+| Frontend     | Next.js, React, Tailwind CSS |
+| Backend      | Next.js API Routes |
+| AI Engine    | FastAPI, LangChain, Groq (LLaMA 3) |
+| Database     | PostgreSQL (Prisma ORM) |
+| Maps         | Leaflet, OpenStreetMap |
+| APIs         | Weather API, Overpass API |
 
-🔹 Map View
+---
 
-🔹 Budget Breakdown
+## 📸 Application Screenshots
 
-🔹 Blog Generation
+### 🏠 Homepage
+![Homepage](./Screenshots/HOMEPAGE.png)
 
-🔹 Vlog Generation
+### 🔐 Login Page
+![Login](./Screenshots/LOGIN_PAGE.png)
 
-🔁 Application Flow
-User enters:
-Origin
-Destination
-Days
-Budget
-Preferences
-Frontend sends request → Backend API
-Backend:
-Validates input
-Calls Python AI server
-Python Server:
-Uses LLM (Groq)
-Generates structured JSON
-Backend processes:
-Budget normalization
-Coordinates mapping
-Frontend displays:
-Itinerary
-Map
-Budget
-Weather
+### 🧠 Generate Trip
+![Generate Trip](./Screenshots/GENERATE_TRIP.png)
 
-🧠 AI Logic Highlights
-Strict itinerary validation rules
-No duplicate activities
-Location-aware planning
-Budget consistency enforcement
-Fallback system in case of AI failure
+### 📅 Itinerary (Part 1)
+![Itinerary1](./Screenshots/ITINERARY1.png)
 
-❗ Deployment Status
+### 📅 Itinerary (Part 2)
+![Itinerary2](./Screenshots/ITINERARY2.png)
 
-⚠️ Note:
-Due to cloud runtime constraints (timeout issues with LLM calls), the full deployment is currently unstable.
+### 🗺️ Map View
+![Map](./Screenshots/MAP.png)
 
-👉 However, the system is fully functional in local environment.
+### 🌦️ Weather
+![Weather](./Screenshots/WEATHER.png)
 
-Screenshots folder demonstrates complete working functionality.
+### 👥 Tour Mates
+![Tourmates](./Screenshots/TOURMATES.png)
 
-🛠️ Local Setup
-1️⃣ Clone Repository
-git clone https://github.com/your-repo-url.git
+### 🍽️ Dining, Accommodation & Map
+![Dining & Accommodation](./Screenshots/DINEIN_ACCOMODATION_MAP.png)
+
+### 📝 Blog Generation
+![Blog](./Screenshots/BLOG.png)
+
+### 🎥 Travel Vlogs
+![Vlogs](./Screenshots/TRAVEL_VLOGS.png)
+
+### 📸 Trip Media
+![Media](./Screenshots/TRIP_MEDIA.png)
+
+### 🤖 Chatbot
+![Chatbot](./Screenshots/CHATBOT.png)
+
+---
+
+## 🔄 Application Flow
+
+1. User enters trip details:
+   - Origin, Destination
+   - Number of days
+   - Budget & preferences  
+
+2. Frontend sends request → Backend API  
+
+3. Backend:
+   - Validates input
+   - Calls Python AI server  
+
+4. FastAPI Server:
+   - Uses Groq LLM
+   - Generates structured itinerary JSON  
+
+5. Additional APIs fetch:
+   - Map coordinates  
+   - Weather data  
+   - Nearby amenities  
+
+6. UI displays:
+   - Itinerary  
+   - Budget  
+   - Map  
+   - Weather  
+   - Blogs & Vlogs  
+
+---
+
+## 🧠 AI Processing
+
+- Prompt-based itinerary generation  
+- Structured JSON parsing  
+- Budget normalization logic  
+- Duplicate activity prevention  
+- Fallback mechanism for API failures  
+
+---
+
+## ⚠️ Deployment Status
+
+> ❗ Live deployment is currently unstable due to LLM response latency and cloud timeout constraints.
+
+✔ Fully functional in local environment  
+✔ Screenshots demonstrate complete working system  
+
+---
+
+## 🧪 Local Setup
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/nilimamishra2002/SmartTrip_Planner
 cd project-folder
-2️⃣ Install Frontend
+2. Install Frontend
 cd travel-package
 npm install
 npm run dev
-3️⃣ Setup Python Server
+3. Setup Python Server
 cd python-server
 pip install -r requirements.txt
 uvicorn app:app --reload
-4️⃣ Environment Variables
-
-Create .env files:
-
+4. Environment Variables
 Frontend (.env)
 DATABASE_URL=
 NEXTAUTH_SECRET=
@@ -150,25 +170,25 @@ Python Server (.env)
 GROQ_API_KEY=
 GOOGLE_SEARCH_API_KEY=
 
-⚠️ Known Issues
+🚧 Known Limitations
 Deployment timeout due to heavy LLM processing
-Railway free tier limitations
 Cold start delays in Python server
+Free-tier cloud limitations
 
 🔮 Future Enhancements
 Async queue-based AI processing
 Caching generated trips
 Real-time collaboration
-Voice-based trip planning
 Mobile optimization
+Voice-based trip planning
 
-👩‍💻 Contributors
+👨‍💻 Contributors
 Nilima Mishra
 Jasaswini Mohanty
 Pragyan Bharati Moharana
 Reetika Mallick
 
-📢 Final Note
+📌 Final Note
 
 This project demonstrates:
 
@@ -177,4 +197,4 @@ AI system integration
 Real-world API usage
 Scalable architecture design
 
-Even without deployment, it reflects a production-grade AI application design
+Even without live deployment, it reflects a production-grade AI system design.
